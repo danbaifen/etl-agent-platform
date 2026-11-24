@@ -51,7 +51,7 @@ spec_coding/          PRD、概要设计、开发规范、各模块 SPEC、原�
 
 当前机器已全局装好全部 Python 依赖与 `frontend/node_modules`，**不要再执行 `pip install`**（外网 PyPI 不可达）。配置已在 `backend/.env` 内固定为 SQLite + 单机幂等，**不需要设任何环境变量**。
 
-**后端必须先确认用哪个 Python**：系统里有两个解释器，只有 `backend/.venv`（已创建，`--system-site-packages` 继承全部依赖）能跑起来；CMD 里默认的 `C:\Users\user1\AppData\Local\Programs\Python\Python312\python.exe` 缺 `pydantic_settings`、`aiosqlite`、`alembic` 等包，直接调会报 `ModuleNotFoundError`。启动脚本已自动探测并优先使用 `.venv`。
+**后端必须先确认用哪个 Python**：系统里可能同时存在两个解释器，只有 `backend/.venv`（已创建，`--system-site-packages` 继承全部依赖）能跑起来；CMD 里默认的 Python 3.12（装在用户目录下，如 `C:\Users\<你>\AppData\Local\Programs\Python\Python312\python.exe`）可能缺 `pydantic_settings`、`aiosqlite`、`alembic` 等包，直接调会报 `ModuleNotFoundError`。启动脚本已自动探测并优先使用 `.venv`。
 
 **方式 A：双击脚本**（项目根目录）
 
@@ -66,13 +66,13 @@ spec_coding/          PRD、概要设计、开发规范、各模块 SPEC、原�
 
 ```bat
 :: 窗口 1 —— 后端
-cd /d "D:\codex-project\生产级 ETL-Agent 数据集成平台\backend"
+cd /d "D:\path\to\etl-agent-platform\backend"
 .venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8010
 ```
 
 ```bat
 :: 窗口 2 —— 前端
-cd /d "D:\codex-project\生产级 ETL-Agent 数据集成平台\frontend"
+cd /d "D:\path\to\etl-agent-platform\frontend"
 npx vite --port 5173
 ```
 
@@ -80,12 +80,12 @@ npx vite --port 5173
 
 打开 **http://localhost:5173**，后端接口文档在 **http://127.0.0.1:8010/docs**。
 
-> **CMD 三个坑**：① 跨盘切换目录必须写 `cd /d`，只写 `cd` 不会真正进入 D 盘（提示符仍是 `C:\Users\user1>`），之后会报 `No module named 'app'` 或找不到 `package.json`；② 变量要单独一行 `set X=Y`，`VAR=x cmd` 这种写在命令前的写法是 bash 的，CMD 会把 `VAR` 当成程序名报「不是内部或外部命令」；③ `export` 也是 bash 语法。PowerShell 对应写法是 `$env:X="Y"`，且 `cd` 不需要 `/d`。
+> **CMD 三个坑**：① 跨盘切换目录必须写 `cd /d`，只写 `cd` 不会真正进入 D 盘（提示符仍停在 `C:\Users\<你>>`），之后会报 `No module named 'app'` 或找不到 `package.json`；② 变量要单独一行 `set X=Y`，`VAR=x cmd` 这种写在命令前的写法是 bash 的，CMD 会把 `VAR` 当成程序名报「不是内部或外部命令」；③ `export` 也是 bash 语法。PowerShell 对应写法是 `$env:X="Y"`，且 `cd` 不需要 `/d`。
 
 `backend/var/platform.db` 与 `backend/var/demo/` 已初始化。若要重置数据：
 
 ```bat
-cd /d "D:\codex-project\生产级 ETL-Agent 数据集成平台\backend"
+cd /d "D:\path\to\etl-agent-platform\backend"
 del var\platform.db
 python -m alembic upgrade head
 python -m app.scripts.seed_demo --data-dir ./var/demo
@@ -140,7 +140,7 @@ pip install -e ".[dev]"
 ## 4. 验证
 
 ```bat
-cd /d "D:\codex-project\生产级 ETL-Agent 数据集成平台\backend"
+cd /d "D:\path\to\etl-agent-platform\backend"
 .venv\Scripts\python.exe -m pytest tests -v      :: 30 passed
 ```
 
