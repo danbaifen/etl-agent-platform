@@ -91,7 +91,18 @@ python -m alembic upgrade head
 python -m app.scripts.seed_demo --data-dir ./var/demo
 ```
 
-### 3.2 全新环境（可联网时）
+### 3.2 从 GitHub 克隆后（全新环境）
+
+仓库**不包含** `backend/.env` 与 `backend/var/`（前者是本地配置、后者是含账号数据的数据库文件）。克隆后先在 `backend/` 下新建 `.env`：
+
+```ini
+DATABASE_URL=sqlite+aiosqlite:///./var/platform.db
+IDEMPOTENCY_BACKEND=memory
+```
+
+`backend/.env.example` 是接入 PostgreSQL + Redis + Vault 的生产模板，单机本地运行不要直接用它。
+
+然后：
 
 ```bash
 cd backend
@@ -99,7 +110,7 @@ python -m venv .venv && source .venv/Scripts/activate   # PowerShell: .venv\Scri
 pip install -e ".[dev]"
 ```
 
-之后按 3.1 的两条命令启动即可（`var/` 会自动创建，首次需先跑一次建库与种子）。
+`var/` 会在首次启动时自动建库并灌演示数据（`start-backend.cmd` 会检测数据库是否存在并自动跑 alembic + seed）。
 
 **演示账号**（密码统一 `DemoPass!2026`）：
 
