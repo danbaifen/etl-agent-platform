@@ -1,0 +1,1714 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>生产级 ETL-Agent 数据集成平台 · 低保真原型</title>
+<style>
+  :root{
+    --ink:#2b2b2b; --ink2:#4a4a4a; --muted:#8a8a8a; --faint:#b0b0b0;
+    --line:#cfcfcf; --line2:#bdbdbd; --fill:#f2f2f2; --fill2:#e8e8e8;
+    --accent:#5a6673; --danger:#9b4a4a; --paper:#fff; --canvas:#f4f4f4;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,"Segoe UI","Microsoft YaHei",Roboto,sans-serif;
+    font-size:13px; color:var(--ink); background:var(--canvas);
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{display:flex; min-height:100vh}
+
+  /* ---------- 侧栏 ---------- */
+  .sidebar{
+    width:212px; flex:0 0 212px; background:#ededed;
+    border-right:1px solid var(--line); padding:0; position:sticky; top:0; height:100vh; overflow-y:auto;
+  }
+  .brand{padding:14px 14px 12px; border-bottom:1px solid var(--line)}
+  .brand .t{font-size:12px; font-weight:600; line-height:1.4}
+  .brand .s{font-size:10px; color:var(--muted); margin-top:3px; letter-spacing:.3px}
+  .nav{padding:8px 0}
+  .nav-group{padding:10px 14px 4px; font-size:10px; color:var(--faint); letter-spacing:.6px}
+  .nav-item{
+    display:flex; align-items:center; gap:8px; padding:7px 14px;
+    font-size:12px; color:var(--ink2); cursor:pointer; border-left:2px solid transparent;
+  }
+  .nav-item:hover{background:#e3e3e3}
+  .nav-item.on{background:#fff; border-left-color:var(--accent); color:var(--ink); font-weight:600}
+  .nav-item .no{font-size:10px; color:var(--faint); font-family:ui-monospace,Consolas,monospace; min-width:16px}
+  .nav-item.on .no{color:var(--accent)}
+
+  /* ---------- 主区 ---------- */
+  .main{flex:1; min-width:0; display:flex; flex-direction:column}
+  .topbar{
+    background:var(--paper); border-bottom:1px solid var(--line);
+    padding:9px 18px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    position:sticky; top:0; z-index:20;
+  }
+  .topbar .crumb{font-size:11px; color:var(--muted)}
+  .topbar .spacer{flex:1}
+  .topbar label{font-size:11px; color:var(--muted)}
+  select.wf-sel,input.wf-inp{
+    font-family:inherit; font-size:12px; color:var(--ink);
+    border:1px solid var(--line2); background:#fff; border-radius:3px; padding:4px 7px;
+  }
+  .who{font-size:11px; color:var(--ink2); border:1px solid var(--line); border-radius:12px; padding:2px 9px; background:#fafafa}
+
+  .content{padding:18px 20px 60px; max-width:1420px}
+  .page{display:none}
+  .page.on{display:block}
+
+  /* ---------- 页头 ---------- */
+  .pagehead{margin-bottom:14px}
+  .pagehead h1{font-size:17px; margin:0 0 5px; font-weight:600}
+  .pagehead .meta{font-size:11px; color:var(--muted); display:flex; gap:14px; flex-wrap:wrap}
+  .pagehead .meta b{font-weight:600; color:var(--ink2)}
+  .pagehead .req{font-family:ui-monospace,Consolas,monospace; font-size:10px; color:var(--accent);
+    background:#eef0f2; border:1px solid #dfe3e6; border-radius:3px; padding:1px 6px}
+
+  /* ---------- 状态条 ---------- */
+  .statebar{
+    display:flex; align-items:flex-start; gap:10px; padding:9px 12px;
+    border:1px solid var(--line2); background:#fafafa; border-radius:4px; margin-bottom:14px; font-size:12px;
+  }
+  .statebar .tag{
+    flex:0 0 auto; font-size:10px; font-weight:600; letter-spacing:.5px;
+    border:1px solid var(--line2); border-radius:3px; padding:2px 6px; background:#fff;
+  }
+  .statebar.block .tag{border-color:var(--danger); color:var(--danger)}
+  .statebar .txt{color:var(--ink2); line-height:1.6}
+  .statebar .txt em{font-style:normal; color:var(--muted)}
+
+  /* ---------- 面板 ---------- */
+  .sec{border:1px solid var(--line); background:var(--paper); border-radius:4px; margin-bottom:14px}
+  .sec > h3{
+    margin:0; padding:9px 13px; font-size:12px; font-weight:600;
+    border-bottom:1px solid var(--line); background:#fafafa; display:flex; align-items:center; gap:8px;
+  }
+  .sec > h3 .hint{margin-left:auto; font-size:10px; color:var(--muted); font-weight:400}
+  .sec .body{padding:13px}
+  .sec .body.tight{padding:0}
+
+  /* ---------- 栅格 ---------- */
+  .row{display:flex; gap:12px; flex-wrap:wrap}
+  .col{flex:1; min-width:250px}
+  .g2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .g3{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
+  .g4{display:grid; grid-template-columns:repeat(4,1fr); gap:12px}
+  @media (max-width:1100px){.g2,.g3,.g4{grid-template-columns:1fr 1fr}}
+
+  /* ---------- 线框盒 ---------- */
+  .box{
+    border:1px dashed var(--line2); background:var(--fill); border-radius:3px;
+    padding:11px; font-size:11px; color:var(--muted); line-height:1.6;
+  }
+  .box.solid{border-style:solid; background:#fff; color:var(--ink2)}
+  .box.center{display:flex; align-items:center; justify-content:center; text-align:center}
+  .box.dark{background:var(--fill2)}
+  .box .lbl{font-size:10px; color:var(--faint); letter-spacing:.4px; margin-bottom:5px}
+
+  /* ---------- 指标卡 ---------- */
+  .kpi{border:1px solid var(--line); border-radius:4px; padding:11px 13px; background:#fff}
+  .kpi .k{font-size:11px; color:var(--muted); margin-bottom:6px}
+  .kpi .v{font-size:22px; font-weight:600; color:var(--ink); line-height:1.1; font-variant-numeric:tabular-nums}
+  .kpi .v small{font-size:11px; font-weight:400; color:var(--muted); margin-left:4px}
+  .kpi .sub{font-size:10px; color:var(--muted); margin-top:6px; line-height:1.5}
+  .kpi.attn{border-color:var(--danger); border-width:1px}
+
+  /* ---------- 表格 ---------- */
+  table.wf{width:100%; border-collapse:collapse; font-size:11.5px}
+  table.wf th{
+    background:#f0f0f0; border-bottom:1px solid var(--line2); border-top:1px solid var(--line);
+    padding:7px 9px; text-align:left; font-weight:600; color:var(--ink2); white-space:nowrap;
+  }
+  table.wf td{border-bottom:1px solid #e4e4e4; padding:7px 9px; color:var(--ink2); vertical-align:top}
+  table.wf tr:last-child td{border-bottom:1px solid var(--line)}
+  table.wf td.num{text-align:right; font-variant-numeric:tabular-nums}
+  table.wf .mono{font-family:ui-monospace,Consolas,monospace; font-size:10.5px; color:var(--muted)}
+  table.wf tr.hl td{background:#fafafa}
+
+  /* ---------- 按钮 ---------- */
+  .btn{
+    display:inline-flex; align-items:center; gap:5px; border:1px solid var(--line2);
+    background:#fff; padding:5px 11px; border-radius:3px; font-size:11.5px; color:var(--ink2);
+    cursor:default; white-space:nowrap; font-family:inherit;
+  }
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff}
+  .btn.danger{border:1.5px solid var(--danger); color:var(--danger); background:#fff; font-weight:600}
+  .btn.ghost{border-style:dashed; color:var(--muted); background:transparent}
+  .btn.sm{padding:3px 8px; font-size:11px}
+  .btn.dis{opacity:.42; border-style:dashed}
+  .btnrow{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+
+  /* ---------- 标签 ---------- */
+  .chip{
+    display:inline-block; border:1px solid var(--line2); border-radius:10px; padding:1px 8px;
+    font-size:10.5px; color:var(--muted); background:#fff; white-space:nowrap;
+  }
+  .chip.on{background:var(--fill2); color:var(--ink); border-color:#b5b5b5; font-weight:600}
+  .chip.dg{border-color:var(--danger); color:var(--danger)}
+  .chip.mono{font-family:ui-monospace,Consolas,monospace; font-size:10px}
+
+  /* ---------- 注释 ---------- */
+  .anno{
+    font-size:11px; color:var(--muted); border-left:2px solid var(--line2);
+    padding:2px 0 2px 9px; margin-top:9px; line-height:1.7;
+  }
+  .anno b{color:var(--ink2); font-weight:600}
+  .anno .q{color:var(--danger)}
+
+  /* ---------- 表单行 ---------- */
+  .field{display:flex; gap:9px; align-items:flex-start; margin-bottom:9px}
+  .field > label{flex:0 0 104px; font-size:11px; color:var(--muted); padding-top:5px; text-align:right}
+  .field > .ctl{flex:1; min-width:0}
+  .field .ctl .inp{
+    border:1px solid var(--line2); background:#fff; border-radius:3px;
+    padding:5px 8px; font-size:11.5px; color:var(--ink2); min-height:28px;
+  }
+  .field .ctl .inp.ph{color:var(--faint)}
+  .field .ctl .inp.ta{min-height:64px; line-height:1.6}
+  .field .ctl .note{font-size:10px; color:var(--faint); margin-top:3px}
+
+  /* ---------- 步骤条 ---------- */
+  .steps{display:flex; gap:0; margin-bottom:14px; border:1px solid var(--line); background:#fff; border-radius:4px; overflow:hidden}
+  .step{flex:1; padding:9px 12px; font-size:11.5px; color:var(--muted); border-right:1px solid var(--line); display:flex; gap:7px; align-items:center}
+  .step:last-child{border-right:0}
+  .step .n{width:17px; height:17px; border:1px solid var(--line2); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; flex:0 0 auto}
+  .step.on{background:#f0f1f2; color:var(--ink); font-weight:600}
+  .step.on .n{border-color:var(--accent); background:var(--accent); color:#fff}
+  .step.done .n{background:var(--fill2); color:var(--ink2); border-color:#b5b5b5}
+
+  /* ---------- 代码块 ---------- */
+  .code{
+    background:#f7f7f7; border:1px solid var(--line); border-radius:3px;
+    padding:10px 12px; font-family:ui-monospace,Consolas,monospace;
+    font-size:10.5px; line-height:1.9; color:var(--ink2); white-space:pre; overflow-x:auto; margin:0;
+  }
+  .code .k{color:#5a6673; font-weight:600}
+  .code .v{color:#7a7a7a}
+  .code .c{color:var(--faint)}
+
+  /* ---------- 曲线占位 ---------- */
+  .chart{
+    height:132px; border:1px dashed var(--line2); border-radius:3px; background:
+      linear-gradient(to right,#f7f7f7 1px,transparent 1px) 0 0/48px 100%,
+      linear-gradient(to bottom,#f7f7f7 1px,transparent 1px) 0 0/100% 26px;
+    display:flex; align-items:center; justify-content:center; color:var(--faint); font-size:10.5px;
+  }
+  .barchart{height:96px; display:flex; align-items:flex-end; gap:6px; padding:0 2px}
+  .barchart .bar{flex:1; background:var(--fill2); border:1px solid var(--line2); border-bottom:0; position:relative}
+  .barchart .bar span{position:absolute; top:-16px; left:0; right:0; text-align:center; font-size:9px; color:var(--muted)}
+
+  /* ---------- 时间线 ---------- */
+  .tl{position:relative; padding-left:16px}
+  .tl:before{content:""; position:absolute; left:4px; top:4px; bottom:6px; width:1px; background:var(--line2)}
+  .tl .it{position:relative; margin-bottom:11px; font-size:11.5px; color:var(--ink2); line-height:1.6}
+  .tl .it:before{content:""; position:absolute; left:-15px; top:5px; width:7px; height:7px; border-radius:50%; background:#fff; border:1px solid var(--line2)}
+  .tl .it.on:before{background:var(--accent); border-color:var(--accent)}
+  .tl .it .tm{font-size:10px; color:var(--faint); font-family:ui-monospace,Consolas,monospace; margin-left:6px}
+
+  /* ---------- 权限遮蔽 ---------- */
+  .readonly-note{display:none; padding:8px 12px; border:1px solid var(--line2); background:#f7f7f7; border-radius:4px; font-size:11.5px; color:var(--ink2); margin-bottom:14px}
+  body[data-role="auditor"] .readonly-note{display:block}
+  /* 写操作按角色精确渲染：Maker 仅生成/冻结类，Checker 仅审批，操作员仅 Commit 与运行控制 */
+  body[data-role="auditor"] .rw{display:none!important}
+  body:not([data-role="maker"]) .rw:not(.op-only):not(.c-only):not(.c2-only){display:none!important}
+  body:not([data-role="operator"]) .op-only{display:none!important}
+  body:not([data-role="checker1"]):not([data-role="checker2"]) .c-only{display:none!important}
+  body:not([data-role="checker2"]) .c2-only{display:none!important}
+
+  /* ---------- 评审表 ---------- */
+  table.rev{width:100%; border-collapse:collapse; font-size:11.5px; background:#fff}
+  table.rev th{background:#f0f0f0; border:1px solid var(--line2); padding:7px 9px; text-align:left; font-weight:600; color:var(--ink2)}
+  table.rev td{border:1px solid #e0e0e0; padding:7px 9px; color:var(--ink2); line-height:1.65; vertical-align:top}
+  table.rev .tag-ok{color:#3f6b4f; font-weight:600}
+  table.rev .tag-open{color:var(--danger); font-weight:600}
+  .legend{font-size:10.5px; color:var(--muted); margin-top:8px; line-height:1.8}
+</style>
+</head>
+<body data-role="maker">
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="t">生产级 ETL-Agent<br>数据集成平台</div>
+      <div class="s">低保真原型 v1.0</div>
+    </div>
+    <div class="nav">
+      <div class="nav-group">S0 入口</div>
+      <div class="nav-item" data-page="login"><span class="no">00</span>登录</div>
+
+      <div class="nav-group">S1 主控制台</div>
+      <div class="nav-item on" data-page="dash"><span class="no">01</span>总览工作台</div>
+      <div class="nav-item" data-page="asset"><span class="no">02</span>数据源与资产</div>
+      <div class="nav-item" data-page="probe"><span class="no">03</span>元数据探查 / 样本</div>
+
+      <div class="nav-group">S2 Pipeline Studio</div>
+      <div class="nav-item" data-page="stu1"><span class="no">04</span>需求输入与澄清</div>
+      <div class="nav-item" data-page="stu2"><span class="no">05</span>方案与拓扑审查</div>
+      <div class="nav-item" data-page="stu3"><span class="no">06</span>门禁 / 冻结 / 提交</div>
+      <div class="nav-item" data-page="diff"><span class="no">07</span>版本与 Diff</div>
+
+      <div class="nav-group">S3 运行中心与审批</div>
+      <div class="nav-item" data-page="prep"><span class="no">08</span>待办与准备单审批</div>
+      <div class="nav-item" data-page="run"><span class="no">09</span>执行监控与质量诊断</div>
+
+      <div class="nav-group">S4 治理与审计</div>
+      <div class="nav-item" data-page="bench"><span class="no">10</span>安全治理 / Benchmark</div>
+      <div class="nav-item" data-page="evidence"><span class="no">11</span>证据账本</div>
+      <div class="nav-item" data-page="settings"><span class="no">12</span>项目与成员设置</div>
+
+      <div class="nav-group">附</div>
+      <div class="nav-item" data-page="review"><span class="no">R</span>评审记录</div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <span class="crumb" id="crumb">总览工作台</span>
+      <span class="chip mono">项目：retail-dw</span>
+      <span class="spacer"></span>
+      <label>以角色查看</label>
+      <select class="wf-sel" id="roleSel">
+        <option value="maker">数据工程师 Maker</option>
+        <option value="checker1">数据审批人 Checker 1</option>
+        <option value="checker2">安全审批人 Checker 2</option>
+        <option value="operator">系统操作员</option>
+        <option value="auditor">审计人员</option>
+      </select>
+      <span class="who">张三 · Maker</span>
+    </div>
+
+    <div class="content">
+      <div class="readonly-note">
+        <b>只读视图</b>　当前角色无写权限，页面不渲染 Commit、审批、暂停、取消、回滚等任何执行入口；请求仍由后端独立裁决。
+      </div>
+
+      <!-- ============ 00 登录 ============ -->
+      <section class="page" id="p-login">
+        <div class="pagehead">
+          <h1>登录</h1>
+          <div class="meta"><span>主要用户：<b>全体</b></span><span class="req">FR-AUTH-01</span><span class="req">FR-AUTH-02</span></div>
+        </div>
+        <div style="display:flex;justify-content:center;padding:40px 0">
+          <div class="box solid" style="width:340px;padding:22px">
+            <div style="text-align:center;margin-bottom:18px">
+              <div style="font-size:13px;font-weight:600">生产级 ETL-Agent 数据集成平台</div>
+              <div style="font-size:10.5px;color:var(--muted);margin-top:4px">控制面平台 · 需要项目成员身份</div>
+            </div>
+            <div class="field"><label>账号</label><div class="ctl"><div class="inp ph">工号或邮箱</div></div></div>
+            <div class="field"><label>密码</label><div class="ctl"><div class="inp ph">••••••••</div></div></div>
+            <div class="field"><label>项目</label><div class="ctl"><div class="inp">retail-dw（登录后校验成员身份）</div></div></div>
+            <div class="btnrow" style="justify-content:flex-end;margin-top:14px">
+              <button class="btn primary">登录</button>
+            </div>
+            <div class="anno"><b>待确认</b>：认证方式（本地账号 / 企业 SSO）尚未冻结，见 TBD-03。原型仅保留单一入口，不设计注册流程——用户由项目管理员添加。</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 01 总览工作台 ============ -->
+      <section class="page on" id="p-dash">
+        <div class="pagehead">
+          <h1>总览工作台</h1>
+          <div class="meta">
+            <span>主要用户：<b>全体</b></span><span>时间窗口：近 7 天</span>
+            <span class="req">FR-DASH-01</span><span class="req">FR-DASH-02</span><span class="req">PRD 15.1</span>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h3>筛选 <span class="hint">指标口径按 PRD 15.1，全部按当前项目与权限过滤</span></h3>
+          <div class="body">
+            <div class="btnrow">
+              <span class="chip on">近 7 天</span><span class="chip">近 30 天</span>
+              <span style="width:8px"></span>
+              <select class="wf-sel"><option>Pipeline：全部</option></select>
+              <select class="wf-sel"><option>环境：生产</option><option>测试</option></select>
+              <select class="wf-sel"><option>连接类型：全部</option></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="g4" style="margin-bottom:14px">
+          <div class="kpi">
+            <div class="k">连接数</div><div class="v">12<small>个</small></div>
+            <div class="sub">启用 10 · 连通失败 1 · 需轮转 1</div>
+          </div>
+          <div class="kpi">
+            <div class="k">Pipeline 数</div><div class="v">27<small>条</small></div>
+            <div class="sub">已发布 19 · 草稿 6 · 已归档 2</div>
+          </div>
+          <div class="kpi attn">
+            <div class="k">待审批门禁</div><div class="v">3<small>项</small></div>
+            <div class="sub">数据维度槽 2 · 安全维度槽 1 · 最长等待 26 小时</div>
+          </div>
+          <div class="kpi">
+            <div class="k">运行成功率</div><div class="v">94.2<small>%</small></div>
+            <div class="sub">成功 65 / 已终止 69（窗口内）</div>
+          </div>
+        </div>
+
+        <div class="g3" style="margin-bottom:14px">
+          <div class="sec" style="margin:0">
+            <h3>连接类型分布</h3>
+            <div class="body">
+              <div class="barchart">
+                <div class="bar" style="height:72%"><span>5</span></div>
+                <div class="bar" style="height:44%"><span>3</span></div>
+                <div class="bar" style="height:28%"><span>2</span></div>
+                <div class="bar" style="height:18%"><span>1</span></div>
+                <div class="bar" style="height:18%"><span>1</span></div>
+              </div>
+              <div style="display:flex;gap:5px;margin-top:6px;font-size:9.5px;color:var(--muted)">
+                <span style="flex:1;text-align:center">MySQL</span><span style="flex:1;text-align:center">Doris</span>
+                <span style="flex:1;text-align:center">PG</span><span style="flex:1;text-align:center">文件</span><span style="flex:1;text-align:center">API</span>
+              </div>
+            </div>
+          </div>
+          <div class="sec" style="margin:0">
+            <h3>风险等级分布</h3>
+            <div class="body">
+              <div class="barchart">
+                <div class="bar" style="height:30%"><span>P0 2</span></div>
+                <div class="bar" style="height:52%"><span>P1 6</span></div>
+                <div class="bar" style="height:86%"><span>P2 14</span></div>
+                <div class="bar" style="height:40%"><span>P3 5</span></div>
+              </div>
+              <div class="anno" style="margin-top:8px">按 Preparation 冻结的 PDP 决策计数</div>
+            </div>
+          </div>
+          <div class="sec" style="margin:0">
+            <h3>运行状态分布</h3>
+            <div class="body">
+              <div class="barchart">
+                <div class="bar" style="height:84%"><span>运行 4</span></div>
+                <div class="bar" style="height:40%"><span>排队 2</span></div>
+                <div class="bar" style="height:26%"><span>失败 1</span></div>
+                <div class="bar" style="height:14%"><span>回滚 1</span></div>
+              </div>
+              <div class="anno" style="margin-top:8px">状态集合见 PRD 7.3</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="g2">
+          <div class="sec" style="margin:0">
+            <h3>待我处理 <span class="hint">按当前角色过滤职责槽</span></h3>
+            <div class="body tight">
+              <table class="wf">
+                <tr><th>Preparation</th><th>制品摘要</th><th>风险</th><th>我的槽位</th><th>等待</th><th></th></tr>
+                <tr class="hl"><td class="mono">PREP-2411</td><td class="mono">a3f9…c21d</td><td><span class="chip dg">P0</span></td><td>数据维度</td><td>26h</td><td><button class="btn sm">去审批</button></td></tr>
+                <tr><td class="mono">PREP-2409</td><td class="mono">7b12…9ee0</td><td><span class="chip">P2</span></td><td>数据维度</td><td>4h</td><td><button class="btn sm">去审批</button></td></tr>
+                <tr><td class="mono">PREP-2401</td><td class="mono">ff04…31aa</td><td><span class="chip">P1</span></td><td>安全维度</td><td>1h</td><td><button class="btn sm">去审批</button></td></tr>
+              </table>
+              <div class="anno" style="padding:0 13px 12px">只展示「等待当前用户」的项，与 PRD 15.1「待审批门禁」口径一致。</div>
+            </div>
+          </div>
+          <div class="sec" style="margin:0">
+            <h3>最近执行</h3>
+            <div class="body tight">
+              <table class="wf">
+                <tr><th>ExecutionRun</th><th>Pipeline</th><th>状态</th><th class="num">读取行数</th><th class="num">拒绝率</th><th class="num">耗时</th></tr>
+                <tr><td class="mono">RUN-8891</td><td>dwd_order_wide</td><td><span class="chip on">RUNNING</span></td><td class="num">1,204,331</td><td class="num">1.8%</td><td class="num">04:12</td></tr>
+                <tr><td class="mono">RUN-8890</td><td>dwd_user_tag</td><td><span class="chip">SUCCEEDED</span></td><td class="num">882,004</td><td class="num">0.2%</td><td class="num">02:47</td></tr>
+                <tr><td class="mono">RUN-8887</td><td>ods_log_clean</td><td><span class="chip dg">FAILED</span></td><td class="num">5,110,922</td><td class="num">21.4%</td><td class="num">08:05</td></tr>
+              </table>
+              <div class="anno" style="padding:0 13px 12px">RUN-8887 拒绝率超预算，对应硬中断场景。</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec" style="margin-top:14px">
+          <h3>快捷导航 <span class="hint">按权限显示，保留当前项目上下文</span></h3>
+          <div class="body">
+            <div class="g4">
+              <div class="box center" style="height:56px">新建数据源连接</div>
+              <div class="box center" style="height:56px">进入 Pipeline Studio</div>
+              <div class="box center" style="height:56px">查看待审批门禁</div>
+              <div class="box center" style="height:56px">运行中心</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 02 数据源与资产 ============ -->
+      <section class="page" id="p-asset">
+        <div class="pagehead">
+          <h1>数据源与资产</h1>
+          <div class="meta"><span>主要用户：<b>Maker</b>（其余角色只读）</span>
+            <span class="req">FR-DS-01</span><span class="req">FR-DS-02</span><span class="req">FR-DS-03</span><span class="req">FR-DS-04</span><span class="req">FR-DS-05</span><span class="req">FR-DS-06</span>
+          </div>
+        </div>
+
+        <div class="statebar">
+          <span class="tag">资产</span>
+          <span class="txt">共 12 个连接，其中 1 个连通失败、1 个凭据待轮转。<em>敏感字段一律只存引用，页面不回显任何明文。</em></span>
+        </div>
+
+        <div class="sec">
+          <h3>连接列表</h3>
+          <div class="body">
+            <div class="btnrow" style="margin-bottom:11px">
+              <select class="wf-sel"><option>类型：全部</option><option>数据库</option><option>文件 / 对象</option><option>API</option></select>
+              <select class="wf-sel"><option>状态：全部</option><option>启用</option><option>连通失败</option><option>需轮转</option></select>
+              <input class="wf-inp" placeholder="搜索名称 / 主机" style="width:190px">
+              <span class="spacer" style="flex:1"></span>
+              <button class="btn primary rw">+ 新建连接</button>
+            </div>
+            <div class="body tight" style="padding:0">
+              <table class="wf">
+                <tr><th>名称</th><th>类型</th><th>端点</th><th>凭据引用</th><th>状态</th><th>最近检查</th><th>最近探查</th><th>操作</th></tr>
+                <tr>
+                  <td>biz-mysql-prod</td><td>MySQL</td><td class="mono">10.0.3.21:3306/sale</td>
+                  <td class="mono">vault:kv/ds/mysql-prod#v3</td>
+                  <td><span class="chip on">启用</span></td><td>2026-11-23 09:12</td><td>v4 · 11-22</td>
+                  <td><div class="btnrow"><button class="btn sm rw">测试</button><button class="btn sm rw">探查</button><button class="btn sm rw">轮转</button></div></td>
+                </tr>
+                <tr>
+                  <td>dw-doris-prod</td><td>Doris</td><td class="mono">10.0.4.8:9030/dw</td>
+                  <td class="mono">vault:kv/ds/doris-prod#v1</td>
+                  <td><span class="chip on">启用</span></td><td>2026-11-23 09:12</td><td>v2 · 11-20</td>
+                  <td><div class="btnrow"><button class="btn sm rw">测试</button><button class="btn sm rw">探查</button><button class="btn sm rw">轮转</button></div></td>
+                </tr>
+                <tr>
+                  <td>ora-legacy</td><td>Oracle</td><td class="mono">10.0.5.2:1521/ORCL</td>
+                  <td class="mono">vault:kv/ds/ora-legacy#v2</td>
+                  <td><span class="chip dg">连通失败</span></td><td>2026-11-23 08:40</td><td>v1 · 11-18</td>
+                  <td><div class="btnrow"><button class="btn sm rw">测试</button><button class="btn sm rw">探查</button><button class="btn sm rw">轮转</button></div></td>
+                </tr>
+                <tr>
+                  <td>oss-log-archive</td><td>S3 / MinIO</td><td class="mono">s3://logs-archive/raw/</td>
+                  <td class="mono">vault:kv/ds/minio#v4</td>
+                  <td><span class="chip dg">需轮转</span></td><td>2026-11-21 17:03</td><td>—</td>
+                  <td><div class="btnrow"><button class="btn sm rw">测试</button><button class="btn sm rw">探查</button><button class="btn sm rw">轮转</button></div></td>
+                </tr>
+                <tr>
+                  <td>crm-rest-api</td><td>REST API</td><td class="mono">https://crm.internal/api/v2</td>
+                  <td class="mono">vault:kv/ds/crm-api#v1</td>
+                  <td><span class="chip on">启用</span></td><td>2026-11-23 07:55</td><td>v3 · 11-23</td>
+                  <td><div class="btnrow"><button class="btn sm rw">测试</button><button class="btn sm rw">探查</button><button class="btn sm rw">轮转</button></div></td>
+                </tr>
+              </table>
+            </div>
+            <div class="anno">状态取值与「最近检查时间」对应 <b>FR-DS-06</b>；「轮转」入口对应 <b>FR-DS-05</b>，点击需二次确认并留审计。</div>
+          </div>
+        </div>
+
+        <div class="g2">
+          <div class="sec" style="margin:0">
+            <h3>新建连接 · 数据库类型<span class="hint">按类型切换字段</span></h3>
+            <div class="body">
+              <div class="field"><label>源类型</label><div class="ctl"><div class="btnrow">
+                <span class="chip on">MySQL</span><span class="chip">PostgreSQL</span><span class="chip">Oracle</span><span class="chip">Doris</span><span class="chip">ClickHouse</span>
+              </div></div></div>
+              <div class="field"><label>连接名称</label><div class="ctl"><div class="inp ph">biz-mysql-prod</div></div></div>
+              <div class="field"><label>主机 / 端口</label><div class="ctl"><div class="inp ph">10.0.3.21 : 3306</div></div></div>
+              <div class="field"><label>库 / Schema</label><div class="ctl"><div class="inp ph">sale / public</div></div></div>
+              <div class="field"><label>用户名</label><div class="ctl"><div class="inp ph">etl_reader（只读账号）</div><div class="note">建议使用只读最小权限账号</div></div></div>
+              <div class="field"><label>凭据</label><div class="ctl"><div class="inp">选择既有 Secret 引用 ▾　或　[ 新建 Secret ]</div>
+                <div class="note">密码不在本页输入框长期留存，提交时写入 Vault 并仅回传引用</div></div></div>
+              <div class="field"><label>SSL / 连接池</label><div class="ctl"><div class="inp ph">启用 TLS · 最大连接 5</div></div></div>
+              <div class="btnrow" style="justify-content:flex-end">
+                <button class="btn">测试连通性</button><button class="btn primary rw">保存</button>
+              </div>
+            </div>
+          </div>
+          <div class="sec" style="margin:0">
+            <h3>新建连接 · 文件 / 对象 / API<span class="hint">按类型切换字段</span></h3>
+            <div class="body">
+              <div class="field"><label>源类型</label><div class="ctl"><div class="btnrow">
+                <span class="chip">CSV</span><span class="chip">Excel</span><span class="chip">JSON</span><span class="chip">Parquet</span><span class="chip on">S3 / MinIO</span><span class="chip">REST API</span>
+              </div></div></div>
+              <div class="field"><label>路径 / 端点</label><div class="ctl"><div class="inp ph">s3://logs-archive/raw/2026/11/*.json</div></div></div>
+              <div class="field"><label>格式细节</label><div class="ctl"><div class="inp ph">编码 UTF-8 · 分隔符 , · 含表头</div></div></div>
+              <div class="field"><label>API 认证</label><div class="ctl"><div class="inp ph">Bearer Token（引用）· 分页：cursor · 限流 10 QPS</div></div></div>
+              <div class="field"><label>凭据</label><div class="ctl"><div class="inp">选择 Secret 引用 ▾</div></div></div>
+              <div class="btnrow" style="justify-content:flex-end">
+                <button class="btn">测试连通性</button><button class="btn primary rw">保存</button>
+              </div>
+              <div class="anno"><b>评审点</b>：文件源缺少「暂存区位置 / 生命周期 / 清理策略」，已列入待确认（TBD-05），原型暂不设计该字段以免误定实现。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 03 元数据探查 ============ -->
+      <section class="page" id="p-probe">
+        <div class="pagehead">
+          <h1>元数据探查与脱敏样本</h1>
+          <div class="meta"><span>连接：<b>biz-mysql-prod</b></span><span>Profile：<b>v4</b> · 2026-11-22 14:20</span>
+            <span class="req">FR-META-01</span><span class="req">FR-META-02</span><span class="req">FR-META-03</span><span class="req">FR-META-04</span><span class="req">FR-META-05</span><span class="req">FR-META-06</span>
+          </div>
+        </div>
+
+        <div class="statebar">
+          <span class="tag">只读</span>
+          <span class="txt">探查全程只读：不写源端业务表、不调用非只读接口。<em>样本默认脱敏，原值不进入页面、日志、模型上下文与审计证据。</em></span>
+        </div>
+
+        <div class="row">
+          <div class="col" style="flex:0 0 268px">
+            <div class="sec">
+              <h3>Schema 树 <span class="hint">Profile 版本 ▾</span></h3>
+              <div class="body" style="font-size:11.5px;line-height:2;color:var(--ink2)">
+                <div>▾ sale（库）</div>
+                <div style="padding-left:14px">▾ biz_order <span class="chip mono">1.2M</span></div>
+                <div style="padding-left:28px;color:var(--muted)">order_id · bigint · PK</div>
+                <div style="padding-left:28px;color:var(--muted)">user_id · bigint</div>
+                <div style="padding-left:28px;color:var(--muted)">amount · decimal</div>
+                <div style="padding-left:28px;color:var(--muted)">status · varchar</div>
+                <div style="padding-left:28px;color:var(--muted)">updated_at · datetime</div>
+                <div style="padding-left:14px">▸ biz_user <span class="chip mono">380K</span></div>
+                <div style="padding-left:14px">▸ order_item <span class="chip mono">4.8M</span></div>
+                <div style="padding-left:14px">▸ dim_region <span class="chip mono">1.2K</span></div>
+              </div>
+            </div>
+            <div class="sec">
+              <h3>探查参数</h3>
+              <div class="body">
+                <div class="field"><label>对象范围</label><div class="ctl"><div class="inp">全部表 / 选中表</div></div></div>
+                <div class="field"><label>统计口径</label><div class="ctl"><div class="inp">近似行数（统计信息）、空值率、基数估算</div><div class="note">注明为近似值，非精确 COUNT</div></div></div>
+                <div class="field"><label>采样策略</label><div class="ctl"><div class="inp">随机 200 行 · 时间窗近 7 天</div></div></div>
+                <div class="field"><label>脱敏规则</label><div class="ctl"><div class="inp">按敏感标记套用：手机掩码 / 邮箱掩码 / 哈希</div></div></div>
+                <div class="btnrow"><button class="btn primary rw">发起探查</button><button class="btn rw">重新采样</button></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="sec">
+              <h3>biz_order · 字段与脱敏样本 <span class="hint">样本 20 行（已脱敏）</span></h3>
+              <div class="body tight">
+                <table class="wf">
+                  <tr><th>字段</th><th>类型</th><th>可空</th><th>键</th><th>敏感标记</th><th>脱敏规则</th><th>样本值</th><th class="num">空值率</th></tr>
+                  <tr><td>order_id</td><td class="mono">bigint</td><td>否</td><td>PK</td><td>—</td><td>—</td><td class="mono">100238811</td><td class="num">0%</td></tr>
+                  <tr><td>user_id</td><td class="mono">bigint</td><td>否</td><td>FK</td><td>标识符</td><td>哈希</td><td class="mono">u_9f2a…</td><td class="num">0%</td></tr>
+                  <tr class="hl"><td>phone</td><td class="mono">varchar</td><td>是</td><td>—</td><td class="chip dg">PII</td><td>手机掩码</td><td class="mono">138****6721</td><td class="num">3.1%</td></tr>
+                  <tr class="hl"><td>email</td><td class="mono">varchar</td><td>是</td><td>—</td><td class="chip dg">PII</td><td>邮箱掩码</td><td class="mono">z***@ex***.com</td><td class="num">7.4%</td></tr>
+                  <tr><td>amount</td><td class="mono">decimal(12,2)</td><td>否</td><td>—</td><td>—</td><td>—</td><td class="mono">1,280.00</td><td class="num">0%</td></tr>
+                  <tr><td>status</td><td class="mono">varchar(16)</td><td>否</td><td>—</td><td>—</td><td>—</td><td class="mono">PAID</td><td class="num">0%</td></tr>
+                  <tr><td>updated_at</td><td class="mono">datetime</td><td>否</td><td>—</td><td>—</td><td>—</td><td class="mono">2026-11-22 10:31:04</td><td class="num">0%</td></tr>
+                </table>
+              </div>
+              <div class="body" style="border-top:1px solid var(--line)">
+                <div class="btnrow">
+                  <span class="chip mono">近似行数 1,204,000</span>
+                  <span class="chip mono">字段 7</span>
+                  <span class="chip mono">采样 200 行</span>
+                  <span class="chip">敏感字段 2</span>
+                  <span style="flex:1"></span>
+                  <button class="btn sm">导出台账（受控）</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <h3>脱敏前后结构对比 <span class="hint">只对比结构与规则，不展示原值</span></h3>
+              <div class="body tight">
+                <table class="wf">
+                  <tr><th>字段</th><th>源类型</th><th>目标类型</th><th>敏感标记</th><th>脱敏规则</th><th>差异</th></tr>
+                  <tr><td>phone</td><td class="mono">varchar(20)</td><td class="mono">varchar(20)</td><td class="chip dg">PII</td><td>手机掩码</td><td><span class="chip on">规则新增</span></td></tr>
+                  <tr><td>email</td><td class="mono">varchar(64)</td><td class="mono">varchar(64)</td><td class="chip dg">PII</td><td>邮箱掩码</td><td><span class="chip on">规则新增</span></td></tr>
+                  <tr><td>user_id</td><td class="mono">bigint</td><td class="mono">varchar(32)</td><td>标识符</td><td>哈希</td><td><span class="chip dg">类型变更</span></td></tr>
+                  <tr><td>amount</td><td class="mono">decimal(12,2)</td><td class="mono">decimal(14,2)</td><td>—</td><td>—</td><td><span class="chip">精度提升</span></td></tr>
+                </table>
+              </div>
+              <div class="anno" style="padding:0 13px 12px">对应 <b>FR-META-05</b>：至少展示字段名、类型、敏感标记、脱敏规则差异，且不含敏感原值。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 04 Studio 步骤1 ============ -->
+      <section class="page" id="p-stu1">
+        <div class="pagehead">
+          <h1>Pipeline Studio · 需求输入与澄清</h1>
+          <div class="meta"><span>主要用户：<b>Maker</b></span><span>会话：S-1042 · 恢复 2 次</span>
+            <span class="req">FR-STU-01</span><span class="req">FR-STU-02</span><span class="req">FR-STU-03</span><span class="req">FR-STU-04</span><span class="req">FR-STU-05</span>
+          </div>
+        </div>
+
+        <div class="steps">
+          <div class="step on"><span class="n">1</span>需求输入与澄清</div>
+          <div class="step"><span class="n">2</span>方案与拓扑审查</div>
+          <div class="step"><span class="n">3</span>门禁 / 冻结 / 提交</div>
+        </div>
+
+        <div class="statebar block">
+          <span class="tag">等待态</span>
+          <span class="txt">工作流在「意图解析」后中断：缺少 <b>主键去重条件</b> 与 <b>增量时间字段</b>。<em>当前等待对象：数据工程师填写澄清表单。中断不产生任何执行副作用。</em></span>
+        </div>
+
+        <div class="row">
+          <div class="col">
+            <div class="sec">
+              <h3>需求输入</h3>
+              <div class="body">
+                <div class="field"><label>源端 Profile</label><div class="ctl"><div class="inp">biz-mysql-prod · v4　▾</div><div class="note">必须是已冻结的元数据 Profile</div></div></div>
+                <div class="field"><label>目标端 Profile</label><div class="ctl"><div class="inp">dw-doris-prod · v2　▾</div></div></div>
+                <div class="field"><label>自然语言需求</label><div class="ctl">
+                  <div class="inp ta">把订单表和用户表按 user_id 关联，汇总成一张宽表写入 Doris，每天凌晨跑一次增量。</div>
+                  <div class="note">生成前置条件：需求文本 + 源/目标 Profile 三者齐备</div>
+                </div></div>
+                <div class="field"><label>模型 Provider</label><div class="ctl"><div class="inp">自动（优先级链：provider-A → provider-B）</div>
+                  <div class="note">实际使用的模型版本会记录到候选制品，供审批查看</div></div></div>
+                <div class="btnrow"><button class="btn primary rw">解析需求</button><button class="btn rw">清空重来</button></div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <h3>澄清中断 · 结构化表单 <span class="hint">提交后从 Checkpoint 恢复</span></h3>
+              <div class="body">
+                <div class="anno" style="margin-top:0;margin-bottom:11px">
+                  <b>问题 1</b>：检测到目标宽表需要去重，但需求中未指定主键。请确认去重依据。<br>
+                  <b>问题 2</b>：增量同步未指定时间字段。请选择增量水位字段。
+                </div>
+                <div class="field"><label>去重主键</label><div class="ctl"><div class="inp">order_id　▾　（可选 order_id / (order_id, item_id)）</div></div></div>
+                <div class="field"><label>增量字段</label><div class="ctl"><div class="inp">biz_order.updated_at　▾</div></div></div>
+                <div class="field"><label>时间窗口</label><div class="ctl"><div class="inp">T-1 日 · 00:00–23:59（Asia/Shanghai）</div></div></div>
+                <div class="field"><label>关联方式</label><div class="ctl"><div class="inp">LEFT JOIN · 以订单为主表</div></div></div>
+                <div class="field"><label>目标表命名</label><div class="ctl"><div class="inp">dwd_order_wide</div>
+                  <div class="note">影子表 / 错误表名由系统按命名规则派生，不由用户填写</div></div></div>
+                <div class="btnrow"><button class="btn primary rw">提交并恢复工作流</button><button class="btn rw">返回修改需求</button></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col" style="flex:0 0 320px">
+            <div class="sec">
+              <h3>工作流节点 <span class="hint">graph_version 1.4</span></h3>
+              <div class="body">
+                <div class="tl">
+                  <div class="it on">意图解析 <span class="tm">14:02:11</span><br><span style="color:var(--muted)">识别 2 个缺失参数 → 中断</span></div>
+                  <div class="it">元数据探查（复用已冻结 Profile，不重复执行）</div>
+                  <div class="it">生成 EtlPlan 与 HOCON</div>
+                  <div class="it">确定性门禁校验</div>
+                  <div class="it">试运行（受限离线校验）</div>
+                  <div class="it">准备审批（Prepare）</div>
+                </div>
+                <div class="anno">每个节点需展示：状态、结果、当前阻塞点。试运行仅做本地解析 + 已冻结元数据推导 + 受管只读采样，不提交作业。</div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <h3>会话与 Checkpoint</h3>
+              <div class="body" style="font-size:11.5px;line-height:1.9;color:var(--ink2)">
+                <div>会话 ID：<span class="mono">S-1042</span></div>
+                <div>断点节点：<span class="mono">intent_parse</span></div>
+                <div>恢复次数：2</div>
+                <div>最近恢复：2026-11-23 14:03:20</div>
+                <div style="color:var(--muted);font-size:11px;margin-top:6px">
+                  恢复前校验：graph_version / checkpoint 格式 / 源目标 Profile 摘要。不兼容时显式失败，不静默降级。
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <h3>会话记录</h3>
+              <div class="body">
+                <div class="box" style="margin-bottom:8px">
+                  <div class="lbl">工程师 14:02</div>
+                  把订单表和用户表按 user_id 关联…
+                </div>
+                <div class="box" style="margin-bottom:8px">
+                  <div class="lbl">系统 14:02</div>
+                  需要确认去重主键与增量字段（见右侧表单）
+                </div>
+                <div class="box">
+                  <div class="lbl">工程师 14:03</div>
+                  主键用 order_id，增量按 updated_at
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 05 Studio 步骤2 ============ -->
+      <section class="page" id="p-stu2">
+        <div class="pagehead">
+          <h1>Pipeline Studio · 方案配置与拓扑审查</h1>
+          <div class="meta"><span>主要用户：<b>Maker</b>（Checker 只读审查）</span><span>候选：C-3391 · 第 2 次修复后</span>
+            <span class="req">FR-STU-06</span><span class="req">FR-STU-07</span><span class="req">FR-STU-08</span><span class="req">FR-STU-09</span>
+          </div>
+        </div>
+
+        <div class="steps">
+          <div class="step done"><span class="n">1</span>需求输入与澄清</div>
+          <div class="step on"><span class="n">2</span>方案与拓扑审查</div>
+          <div class="step"><span class="n">3</span>门禁 / 冻结 / 提交</div>
+        </div>
+
+        <div class="statebar">
+          <span class="tag">修复</span>
+          <span class="txt">门禁第 1 次未通过（缺少主键去重），已自动修复 1 次并通过。<em>修复轮次 1 / 上限 3。</em></span>
+        </div>
+
+        <div class="sec">
+          <h3>视图切换 <span class="hint">EtlPlan / HOCON / DAG / 字段映射</span></h3>
+          <div class="body">
+            <div class="btnrow"><span class="chip on">EtlPlan</span><span class="chip">HOCON 配置</span><span class="chip">DAG 拓扑</span><span class="chip">字段映射 Diff</span><span class="chip">脱敏前后结构</span><span class="chip">修复记录</span></div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col">
+            <div class="sec">
+              <h3>结构化 EtlPlan <span class="hint">只读结构化视图，可展开节点</span></h3>
+              <div class="body">
+                <div class="box solid" style="margin-bottom:8px">
+                  <div class="lbl">source</div>
+                  MySQL · biz_order（biz_user LEFT JOIN）· 增量 updated_at ≥ T-1
+                </div>
+                <div style="text-align:center;color:var(--faint);font-size:11px;margin:4px 0">↓</div>
+                <div class="box solid" style="margin-bottom:8px">
+                  <div class="lbl">transform</div>
+                  字段映射 14 项 · 清洗规则 6 条 · 去重键 order_id · 空值兜底 3 项
+                </div>
+                <div style="text-align:center;color:var(--faint);font-size:11px;margin:4px 0">↓</div>
+                <div class="box solid">
+                  <div class="lbl">sink</div>
+                  Doris · dwd_order_wide · 写入 dOrderSink（影子表）· 错误表 dwd_order_wide__err
+                </div>
+                <div class="anno">对应 <b>FR-STU-06</b>：模型输出必须是可校验的结构化对象，不接受自由文本直接进入执行。</div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <h3>SeaTunnel HOCON 配置 <span class="hint">语法高亮 · 只读</span></h3>
+              <div class="body">
+<pre class="code"><span class="k">env</span> {
+  <span class="k">job.mode</span> = "BATCH"
+  <span class="k">parallelism</span> = 2
+}
+<span class="k">source</span> {
+  <span class="k">Jdbc</span> {
+    <span class="k">url</span> = <span class="v">"jdbc:mysql://10.0.3.21:3306/sale"</span>
+    <span class="k">query</span> = <span class="v">"SELECT o.order_id, o.user_id, ..."</span>
+    <span class="k">password</span> = <span class="c">"${secret:biz-mysql-prod}"</span>   <span class="c">// 仅引用，不落明文</span>
+  }
+}
+<span class="k">sink</span> {
+  <span class="k">Doris</span> {
+    <span class="k">table</span> = <span class="v">"dwd_order_wide__shadow_8891"</span>
+    <span class="k">sink.enable-delete</span> = true
+    <span class="k">sink.delete-key</span> = <span class="v">["order_id"]</span>
+  }
+}</pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="col" style="flex:0 0 380px">
+            <div class="sec">
+              <h3>DAG 拓扑</h3>
+              <div class="body">
+                <div class="box center" style="height:190px;font-size:10.5px;line-height:1.9">
+                  图形画布占位<br>
+                  biz_order ●─┐<br>
+                  biz_user  ●─┴─▶ transform ─▶ dOrderSink<br>
+                  <span style="color:var(--faint)">点击节点查看配置片段与字段来源</span>
+                </div>
+                <div class="anno">DAG 需可查看节点与边；节点点击联动 HOCON 定位。</div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <h3>字段映射 <span class="hint">新增 / 删除 / 修改</span></h3>
+              <div class="body tight">
+                <table class="wf">
+                  <tr><th>源字段</th><th>目标字段</th><th>转换</th><th>状态</th></tr>
+                  <tr><td class="mono">o.order_id</td><td class="mono">order_id</td><td>—</td><td><span class="chip">保留</span></td></tr>
+                  <tr><td class="mono">o.user_id</td><td class="mono">user_key</td><td>hash</td><td><span class="chip on">改类型</span></td></tr>
+                  <tr><td class="mono">u.phone</td><td class="mono">phone_masked</td><td>手机掩码</td><td><span class="chip on">新增</span></td></tr>
+                  <tr><td class="mono">u.email</td><td class="mono">email_masked</td><td>邮箱掩码</td><td><span class="chip on">新增</span></td></tr>
+                  <tr><td class="mono">o.amount</td><td class="mono">amount</td><td>decimal(14,2)</td><td><span class="chip">保留</span></td></tr>
+                  <tr><td class="mono">o.created_at</td><td class="mono">—</td><td>—</td><td><span class="chip dg">删除</span></td></tr>
+                </table>
+              </div>
+              <div class="anno" style="padding:0 13px 12px">敏感字段必须体现脱敏规则，审批人据此判断是否有明文暴露。</div>
+            </div>
+
+            <div class="sec">
+              <h3>有限修复记录 <span class="hint">每次修复：原因 / 变更 / 结果 / 剩余错误</span></h3>
+              <div class="body">
+                <div class="tl">
+                  <div class="it on">
+                    <b>第 1 次修复</b><span class="tm">14:07:22</span><br>
+                    触发原因：门禁 GATE-MAP-03 缺少去重键<br>
+                    变更对象：sink.delete-key<br>
+                    修复结果：已补充 <span class="mono">["order_id"]</span><br>
+                    剩余错误：0
+                  </div>
+                  <div class="it" style="color:var(--muted)">
+                    轮次上限 3，超限转人工处理
+                  </div>
+                </div>
+                <div class="btnrow" style="margin-top:10px">
+                  <button class="btn rw">接受当前修复</button>
+                  <button class="btn rw">调整并重新生成</button>
+                </div>
+                <div class="anno">对应 <b>FR-STU-08 / FR-STU-09</b>：影响主键、去重、增量、字段映射的修复必须由工程师确认。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 06 Studio 步骤3 ============ -->
+      <section class="page" id="p-stu3">
+        <div class="pagehead">
+          <h1>Pipeline Studio · 门禁校验与审批提交</h1>
+          <div class="meta"><span>主要用户：<b>Maker</b></span><span>gate_version：<b>2.7</b></span>
+            <span class="req">FR-GATE-01</span><span class="req">FR-GATE-02</span><span class="req">FR-GATE-03</span><span class="req">FR-GATE-04</span><span class="req">FR-GATE-05</span><span class="req">FR-STU-10</span><span class="req">FR-PREP-01</span>
+          </div>
+        </div>
+
+        <div class="steps">
+          <div class="step done"><span class="n">1</span>需求输入与澄清</div>
+          <div class="step done"><span class="n">2</span>方案与拓扑审查</div>
+          <div class="step on"><span class="n">3</span>门禁 / 冻结 / 提交</div>
+        </div>
+
+        <div class="statebar">
+          <span class="tag">就绪</span>
+          <span class="txt">确定性门禁全部通过（6 组 / 28 条规则），可冻结为不可变版本。<em>门禁由规则引擎执行，模型无法跳过或伪造。</em></span>
+        </div>
+
+        <div class="row">
+          <div class="col">
+            <div class="sec">
+              <h3>门禁校验结果 <span class="hint">gate_version 2.7 · 执行于 14:08:31</span></h3>
+              <div class="body tight">
+                <table class="wf">
+                  <tr><th>规则组</th><th>规则数</th><th>结论</th><th>说明 / 定位</th></tr>
+                  <tr><td>HOCON / 配置语法</td><td class="num">6</td><td><span class="chip on">通过</span></td><td>可解析，必需键齐备</td></tr>
+                  <tr><td>Schema 与类型对齐</td><td class="num">7</td><td><span class="chip on">通过</span></td><td>2 处隐式转换已显式声明</td></tr>
+                  <tr><td>字段映射完整性</td><td class="num">5</td><td><span class="chip on">通过</span></td><td>14/14 已映射，主键唯一</td></tr>
+                  <tr><td>质量规则合法性</td><td class="num">4</td><td><span class="chip on">通过</span></td><td>6 条规则均可执行，错误码已定义</td></tr>
+                  <tr><td>DAG 与资源边界</td><td class="num">4</td><td><span class="chip on">通过</span></td><td>无环，并行度 2 在配额内</td></tr>
+                  <tr><td>凭据与资源范围</td><td class="num">2</td><td><span class="chip on">通过</span></td><td>仅引用 Secret，无明文</td></tr>
+                </table>
+              </div>
+              <div class="body" style="border-top:1px solid var(--line)">
+                <div class="btnrow"><button class="btn rw">重新执行门禁</button><button class="btn rw">查看全部 28 条明细</button></div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <h3>调度策略 <span class="hint">属于冻结事实，审批人可见</span></h3>
+              <div class="body">
+                <div class="g2">
+                  <div class="field"><label>调度方式</label><div class="ctl"><div class="inp">周期执行　▾</div></div></div>
+                  <div class="field"><label>Cron</label><div class="ctl"><div class="inp">0 30 1 * * ?（Asia/Shanghai）</div></div></div>
+                  <div class="field"><label>执行窗口</label><div class="ctl"><div class="inp">2026-12-01 ~ 2027-05-31</div></div></div>
+                  <div class="field"><label>失败策略</label><div class="ctl"><div class="inp">不重试，转人工诊断</div></div></div>
+                </div>
+                <div class="field"><label>预计执行次数</label><div class="ctl"><div class="inp ph">待确认（依赖授权语义，见 TBD-07）</div>
+                  <div class="note">若采用「审批窗口内每次执行仍签发新授权」，此值需展示给审批人作为预算切分依据</div></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col" style="flex:0 0 360px">
+            <div class="sec">
+              <h3>冻结不可变版本</h3>
+              <div class="body">
+                <div class="box solid" style="background:#fafafa">
+                  <div class="lbl">当前候选摘要（未冻结）</div>
+                  <div class="mono" style="font-size:11px;word-break:break-all">b7c4e1a0 9f23d5... （候选摘要不对外承诺，冻结时重算）</div>
+                </div>
+                <div class="anno">冻结时由服务端重新计算摘要并写入版本记录，不信任候选记录的旧值。冻结后组件不可修改，内容变更只能新建版本。</div>
+                <div class="btnrow" style="margin-top:11px">
+                  <button class="btn danger rw">冻结为 PipelineVersion</button>
+                </div>
+                <div class="anno"><b>高风险操作</b>：展示对象（C-3391）、影响范围（生成不可变版本 v8）、不可逆性（冻结后仅可新建版本），需二次确认。</div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <h3>提交审批</h3>
+              <div class="body" style="font-size:11.5px;line-height:1.9;color:var(--ink2)">
+                <div>冻结版本：<span class="mono">v8</span>（待生成）</div>
+                <div>目标表：<span class="mono">dw.dwd_order_wide</span></div>
+                <div>数据分级：<b>含 PII（手机 / 邮箱）</b></div>
+                <div>预计风险：<span class="chip dg">P1</span>（含 PII + 写目标库）</div>
+                <div style="color:var(--muted);font-size:11px;margin-top:7px">
+                  实际风险等级与职责槽由 PDP 在 Prepare 时计算，此处仅为提示。
+                </div>
+                <div class="btnrow" style="margin-top:11px">
+                  <button class="btn primary rw">Prepare 并提交审批</button>
+                </div>
+                <div class="anno">Prepare 只推导并冻结事实，不产生任何数据面副作用；提交后跳转运行中心准备单。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 07 版本与 Diff ============ -->
+      <section class="page" id="p-diff">
+        <div class="pagehead">
+          <h1>不可变版本与 Diff</h1>
+          <div class="meta"><span>Pipeline：<b>dwd_order_wide</b></span>
+            <span class="req">FR-GATE-06</span><span class="req">FR-GATE-07</span><span class="req">FR-COMMIT-03</span>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h3>版本列表 <span class="hint">冻结后只读，SHA256 不可覆盖</span></h3>
+          <div class="body tight">
+            <table class="wf">
+              <tr><th>版本</th><th>SHA256</th><th>创建人</th><th>冻结时间</th><th>状态</th><th>关联</th><th></th></tr>
+              <tr class="hl"><td>v8</td><td class="mono">a3f9b2…c21d</td><td>张三</td><td>2026-11-23 14:09</td><td><span class="chip on">COMMITTED</span></td><td class="mono">PREP-2411 → RUN-8891</td><td><button class="btn sm">对比</button></td></tr>
+              <tr><td>v7</td><td class="mono">7b12aa…9ee0</td><td>张三</td><td>2026-11-20 10:02</td><td><span class="chip">SUPERSEDED</span></td><td class="mono">PREP-2388 → RUN-8850</td><td><button class="btn sm">对比</button></td></tr>
+              <tr><td>v6</td><td class="mono">ff04c7…31aa</td><td>李四</td><td>2026-11-18 16:44</td><td><span class="chip">FAILED</span></td><td>门禁未通过，未提交</td><td><button class="btn sm">对比</button></td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h3>版本对比 <span class="hint">v7 → v8</span></h3>
+          <div class="body">
+            <div class="btnrow" style="margin-bottom:11px">
+              <select class="wf-sel"><option>A：v7</option></select>
+              <span style="color:var(--faint)">→</span>
+              <select class="wf-sel"><option>B：v8</option></select>
+              <span style="flex:1"></span>
+              <span class="chip on">Schema</span><span class="chip on">HOCON</span><span class="chip on">质量规则</span>
+            </div>
+            <div class="g3">
+              <div>
+                <div class="box solid" style="background:#fafafa;margin-bottom:8px"><div class="lbl">Schema 差异</div>
+                  新增 2 字段（phone_masked、email_masked）<br>
+                  修改 1 字段类型（user_id → varchar(32)）<br>
+                  删除 1 字段（created_at）
+                </div>
+              </div>
+              <div>
+                <div class="box solid" style="background:#fafafa;margin-bottom:8px"><div class="lbl">HOCON 差异</div>
+                  + sink.delete-key = ["order_id"]<br>
+                  + sink.enable-delete = true<br>
+                  ~ parallelism 1 → 2
+                </div>
+              </div>
+              <div>
+                <div class="box solid" style="background:#fafafa;margin-bottom:8px"><div class="lbl">质量规则差异</div>
+                  + PHONE_FORMAT_INVALID<br>
+                  + EMAIL_FORMAT_INVALID<br>
+                  ~ AMOUNT_RANGE 阈值 0–1e6 → 0–1e7
+                </div>
+              </div>
+            </div>
+            <div class="anno"><b>影响提示</b>：主键变化会影响增量去重语义；质量规则新增会改变分流率，需同步评估拒绝率预算。Diff 需明确新增 / 删除 / 修改及可能影响。</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 08 待办与准备单审批 ============ -->
+      <section class="page" id="p-prep">
+        <div class="pagehead">
+          <h1>运行中心 · 待办与准备单审批</h1>
+          <div class="meta"><span>主要用户：<b>Checker 1 / Checker 2 / 操作员</b></span><span>Preparation：<b>PREP-2411</b></span>
+            <span class="req">FR-PREP-02</span><span class="req">FR-PREP-03</span><span class="req">FR-PREP-04</span><span class="req">FR-PREP-05</span><span class="req">FR-PREP-06</span><span class="req">FR-PREP-07</span><span class="req">FR-PREP-08</span><span class="req">FR-COMMIT-01</span><span class="req">FR-COMMIT-02</span>
+          </div>
+        </div>
+
+        <div class="statebar">
+          <span class="tag">等待态</span>
+          <span class="txt">状态 <b>PARTIALLY_APPROVED</b>：数据维度已批准，等待安全维度审批。<em>当前等待对象：Checker 2（王五）。准备单有效期剩余 18h 22m。</em></span>
+        </div>
+
+        <div class="row">
+          <div class="col" style="flex:0 0 250px">
+            <div class="sec">
+              <h3>我的待办</h3>
+              <div class="body tight">
+                <table class="wf">
+                  <tr><th>准备单</th><th>槽位</th><th>等待</th></tr>
+                  <tr class="hl"><td class="mono">PREP-2411</td><td>安全</td><td>26h</td></tr>
+                  <tr><td class="mono">PREP-2401</td><td>安全</td><td>1h</td></tr>
+                  <tr><td class="mono">PREP-2395</td><td>数据</td><td>3h</td></tr>
+                </table>
+              </div>
+              <div class="anno" style="padding:0 13px 12px">只列出分配给当前用户的槽位。切换 URL 或改请求体不能代替他人槽位。</div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="sec">
+              <h3>Preparation 冻结事实 <span class="hint">PREP-2411 · 快照冻结于 2026-11-23 14:09:40</span></h3>
+              <div class="body">
+                <div class="g2">
+                  <div class="box solid">
+                    <div class="lbl">输入指纹</div>
+                    会话确认摘要 <span class="mono">c4d1</span><br>
+                    源 Profile <span class="mono">biz-mysql-prod v4</span><br>
+                    目标 Profile <span class="mono">dw-doris-prod v2</span><br>
+                    制品 SHA256 <span class="mono">a3f9…c21d</span><br>
+                    质量规则摘要 <span class="mono">q-2.1</span><br>
+                    调度策略摘要 <span class="mono">s-0.3</span>
+                  </div>
+                  <div class="box solid">
+                    <div class="lbl">变更资源范围</div>
+                    源表 <span class="mono">sale.biz_order, sale.biz_user</span><br>
+                    目标表 <span class="mono">dw.dwd_order_wide</span><br>
+                    影子表 <span class="mono">dw.dwd_order_wide__shadow</span><br>
+                    错误表 <span class="mono">dw.dwd_order_wide__err</span><br>
+                    Secret 引用 <span class="mono">kv/ds/mysql-prod#v3</span><br>
+                    网络资源 <span class="mono">10.0.3.21:3306, 10.0.4.8:9030</span>
+                  </div>
+                </div>
+
+                <div class="g2" style="margin-top:12px">
+                  <div class="box solid">
+                    <div class="lbl">数据敏感分级与脱敏策略</div>
+                    分级：<b>L3 · 含 PII</b>（phone、email）<br>
+                    脱敏：手机掩码 / 邮箱掩码 / user_id 哈希<br>
+                    证据脱敏：开启（证据只存摘要与脱敏载荷）
+                  </div>
+                  <div class="box solid">
+                    <div class="lbl">执行预算配额（RuntimeSupervisionContract）</div>
+                    最大读取行数 <span class="mono">5,000,000</span><br>
+                    最大写入字节 <span class="mono">8 GiB</span><br>
+                    最大执行时长 <span class="mono">30 min</span><br>
+                    输出放大比上限 <span class="mono">1.5×</span><br>
+                    拒绝率上限 <span class="mono">20%</span>
+                  </div>
+                </div>
+
+                <div class="g2" style="margin-top:12px">
+                  <div class="box solid">
+                    <div class="lbl">回滚计划</div>
+                    可取消范围：作业级取消 + 影子表清理<br>
+                    影子表清理：<span class="mono">dwd_order_wide__shadow_8891</span><br>
+                    Swap 恢复：记录前序正式表引用，可回切<br>
+                    资源释放：释放作业资源与临时凭据
+                  </div>
+                  <div class="box solid">
+                    <div class="lbl">PDP 决策</div>
+                    风险等级：<span class="chip dg">P1</span>　命中策略 <span class="mono">pol-2.7</span><br>
+                    命中规则：<span class="mono">R-PII-01（含 PII）</span>、<span class="mono">R-WRITE-DW-03（写生产目标库）</span><br>
+                    可解释理由：目标库为生产、含 PII 字段、批量写入超百万行<br>
+                    审批要求：数据维度 + 安全维度双槽，<b>须不同人</b>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <h3>职责槽与审批操作</h3>
+              <div class="body tight">
+                <table class="wf">
+                  <tr><th>职责槽</th><th>指定人</th><th>角色</th><th>结论</th><th>意见</th><th>时点</th></tr>
+                  <tr><td>数据维度</td><td>李四</td><td>Checker 1</td><td><span class="chip on">已批准</span></td><td>字段映射与脱敏规则无误</td><td class="mono">11-23 15:20</td></tr>
+                  <tr class="hl"><td>安全维度</td><td>王五</td><td>Checker 2</td><td><span class="chip dg">待审批</span></td><td>—</td><td>—</td></tr>
+                  <tr><td>操作员候选</td><td>赵六</td><td>操作员</td><td><span class="chip">未触发</span></td><td>—</td><td>—</td></tr>
+                </table>
+              </div>
+              <div class="body" style="border-top:1px solid var(--line)">
+                <div class="field"><label>审批意见</label><div class="ctl"><div class="inp ta ph">必填：驳回时必须说明原因；批准时建议说明复核要点</div></div></div>
+                <div class="btnrow c-only">
+                  <button class="btn primary rw c-only">批准（安全维度）</button>
+                  <button class="btn danger rw c-only">驳回</button>
+                  <span class="chip">申请人：张三</span>
+                  <span class="chip dg">职责分离：与申请人不同人校验通过</span>
+                </div>
+                <div class="anno">
+                  <b>评审点</b>：若当前用户既是 Maker 又持有该槽位，「批准」按钮为禁用态并提示原因，后端仍独立拒绝。<br>
+                  审批结论绑定：具名用户 + 职责槽 + Preparation 指纹 + 审批时点。任一关键事实变化都会使本审批失效。
+                </div>
+              </div>
+            </div>
+
+            <div class="sec op-only">
+              <h3>Commit <span class="hint">仅系统操作员可见</span></h3>
+              <div class="body">
+                <div class="box solid" style="background:#fafafa">
+                  <div class="lbl">Commit 前服务端复验项（缺一即拒）</div>
+                  Preparation 状态为 APPROVED　·　快照摘要一致　·　未过期<br>
+                  两个职责槽均 APPROVE 且审批人 = 槽位指定人<br>
+                  审批人均非 Maker　·　高风险双槽为不同人<br>
+                  制品 SHA256 与准备单记录一致
+                </div>
+                <div class="btnrow" style="margin-top:11px">
+                  <button class="btn danger rw">发起 Commit</button>
+                </div>
+                <div class="anno">通过后签发 <b>Ed25519 单次 Capability</b>（有效期 5 分钟、绑定工具/主体/环境/制品摘要），并在同一事务内创建 ExecutionRun 与 Outbox 事件。三者要么全成，要么全无。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 09 执行监控与质量诊断 ============ -->
+      <section class="page" id="p-run">
+        <div class="pagehead">
+          <h1>运行中心 · 执行监控与质量诊断</h1>
+          <div class="meta"><span>ExecutionRun：<b>RUN-8891</b></span><span>Pipeline：<b>dwd_order_wide</b> · v8</span><span>制品 SHA256：<b>a3f9…c21d</b></span>
+            <span class="req">FR-RUN-01</span><span class="req">FR-RUN-03</span><span class="req">FR-RUN-04</span><span class="req">FR-RUN-05</span><span class="req">FR-RUN-06</span><span class="req">FR-RUN-08</span><span class="req">FR-RUN-09</span><span class="req">FR-QUAL-03</span>
+          </div>
+        </div>
+
+        <div class="statebar">
+          <span class="tag">执行态</span>
+          <span class="txt">状态 <b>RUNNING</b> · 已运行 04:12 · 拒绝率 1.8%（预算 20%）。<em>SeaTunnel 作业 ID：zeta-20261123-8891。</em></span>
+        </div>
+
+        <div class="btnrow" style="margin-bottom:14px">
+          <button class="btn rw op-only">暂停</button>
+          <button class="btn danger rw op-only">取消作业</button>
+          <button class="btn danger rw op-only">受管回滚</button>
+          <span style="flex:1"></span>
+          <button class="btn">查看日志</button>
+          <button class="btn">导出运行报告</button>
+        </div>
+
+        <div class="g4" style="margin-bottom:14px">
+          <div class="kpi"><div class="k">读取行数</div><div class="v">1.20<small>M</small></div><div class="sub">预算 5.00M · 24%</div></div>
+          <div class="kpi"><div class="k">写入字节</div><div class="v">2.4<small>GiB</small></div><div class="sub">预算 8.0 GiB · 30%</div></div>
+          <div class="kpi"><div class="k">平均吞吐</div><div class="v">4.8<small>K/s</small></div><div class="sub">有效运行窗口内均值</div></div>
+          <div class="kpi attn"><div class="k">拒绝率</div><div class="v">1.8<small>%</small></div><div class="sub">预算 20% · 接近预警不触发</div></div>
+        </div>
+
+        <div class="row">
+          <div class="col">
+            <div class="sec">
+              <h3>吞吐与拒绝率曲线 <span class="hint">采样周期 5s · 事件推送</span></h3>
+              <div class="body">
+                <div class="chart">吞吐曲线占位（records/s）· 预算线 · 预警阈值线</div>
+                <div class="chart" style="height:80px;margin-top:9px">拒绝率曲线占位（%）· 20% 硬阈值线</div>
+                <div class="anno">指标双通道采集：Worker 采样表 + 引擎状态查询，判断取更严格一侧，避免 Worker 崩溃导致漏判。</div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <h3>质量分流与报告 <span class="hint">QualityReport：EVALUATING</span></h3>
+              <div class="body">
+                <div class="g3">
+                  <div class="box solid"><div class="lbl">有效数据写入行数</div>1,182,644</div>
+                  <div class="box solid"><div class="lbl">分流错误表行数</div>21,687</div>
+                  <div class="box solid"><div class="lbl">拒绝率</div>1.80%（预算 20%）</div>
+                </div>
+                <div style="margin-top:12px">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:7px">ErrorCode 分布</div>
+                  <div class="barchart" style="height:84px">
+                    <div class="bar" style="height:88%"><span>PHONE_FORMAT 14.2k</span></div>
+                    <div class="bar" style="height:38%"><span>NULL_REQUIRED 4.1k</span></div>
+                    <div class="bar" style="height:22%"><span>EMAIL_FORMAT 2.3k</span></div>
+                    <div class="bar" style="height:10%"><span>AMOUNT_RANGE 1.1k</span></div>
+                  </div>
+                </div>
+                <div class="g2" style="margin-top:12px">
+                  <div class="box solid"><div class="lbl">规则未命中样本摘要（脱敏）</div>
+                    手机号长度 8 位 → 138****67<br>
+                    必填字段为空 → user_key = ∅<br>
+                    金额为负 → -1280.00
+                  </div>
+                  <div class="box solid"><div class="lbl">结论 / 监督决策 / Swap</div>
+                    质量结论：待定（作业未结束）<br>
+                    监督决策：未触发预警<br>
+                    Swap：未执行（需质量 PASSED + 预算未越界）
+                  </div>
+                </div>
+                <div class="anno"><b>评审点</b>：质量报告必须同时呈现「监督决策」与「Swap 是否执行及结果」，否则审批人无法判断发布依据是否完整。</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col" style="flex:0 0 380px">
+            <div class="sec">
+              <h3>可解释诊断 <span class="hint">基于受控错误信息，不引用模型裸文本</span></h3>
+              <div class="body" style="font-size:11.5px;line-height:1.95;color:var(--ink2)">
+                <div>异常阶段：<b>sink 写入</b></div>
+                <div>错误码：<span class="mono">QUAL_PHONE_FORMAT_INVALID</span></div>
+                <div>堆栈摘要：<span class="mono">NumberFormatException at 掩码转换 …</span></div>
+                <div>触发规则 / 预算：PHONE_FORMAT 规则组 · 拒绝率 1.8%</div>
+                <div>影响范围：目标表 <span class="mono">dwd_order_wide__shadow_8891</span> · 行数 21,687</div>
+                <div>建议动作：校对源端手机号长度约束；确认是否放宽规则</div>
+                <div>允许操作：可重试 · 可回滚 · 可重新 Prepare</div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <h3>关键事件时间线</h3>
+              <div class="body">
+                <div class="tl">
+                  <div class="it">Commit 签发 Capability <span class="tm">14:10:02</span></div>
+                  <div class="it">Worker 验签并物化短时凭据 <span class="tm">14:10:05</span></div>
+                  <div class="it on">提交 SeaTunnel 作业 <span class="tm">14:10:09</span></div>
+                  <div class="it">状态 RUNNING · 开始采样 <span class="tm">14:10:40</span></div>
+                  <div class="it" style="color:var(--muted)">预计结束 14:14:30</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <h3>日志（已脱敏）</h3>
+              <div class="body tight">
+<pre class="code" style="border:0;background:#fafafa">14:10:09 INFO  submit job
+  job=zeta-2026…8891
+14:10:40 INFO  stage=sink
+  rows_in=1204331
+14:12:11 WARN  reject=1.8%
+  rule=PHONE_FORMAT
+14:13:02 INFO  sample 5s
+  throughput=4.8K/s</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h3>ExecutionRun 执行记录 <span class="hint">PRD 12.2 必备字段，可导出</span></h3>
+          <div class="body tight">
+            <table class="wf">
+              <tr><th>任务 ID</th><th>制品 SHA256</th><th>起止时间</th><th class="num">读取行数</th><th class="num">写入字节</th><th class="num">平均吞吐</th><th>作业 ID</th><th>错误摘要</th><th>证据</th></tr>
+              <tr><td class="mono">RUN-8891</td><td class="mono">a3f9…c21d</td><td class="mono">14:10:02 – 进行中</td><td class="num">1,204,331</td><td class="num">2.4 GiB</td><td class="num">4.8K/s</td><td class="mono">zeta-…8891</td><td>—</td><td><button class="btn sm">查看链</button></td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h3>其他运行状态呈现 <span class="hint">全局五态规范：阻塞 / 等待 / 执行 / 异常 / 完成（PRD 5.3）</span></h3>
+          <div class="body">
+            <div class="g3">
+              <div>
+                <div class="statebar block" style="margin-bottom:9px">
+                  <span class="tag">异常态</span>
+                  <span class="txt">状态 <b>FAILED</b>（硬中断已触发）<br>拒绝率 21.4% &gt; 预算 20%</span>
+                </div>
+                <div class="box solid" style="font-size:11px;line-height:1.85">
+                  <div class="lbl">失败快照</div>
+                  快照 ID <span class="mono">SNAP-8891-A</span><br>
+                  失败阶段：sink 写入<br>
+                  触发规则：<span class="mono">BUDGET-REJECT-20</span><br>
+                  作业已终止：<b>是</b><br>
+                  正式表受影响：<b>否</b><br>
+                  <div style="margin-top:7px;color:var(--muted)">诊断与回滚入口在此态可见</div>
+                </div>
+              </div>
+              <div>
+                <div class="statebar" style="margin-bottom:9px">
+                  <span class="tag">完成态</span>
+                  <span class="txt">状态 <b>SUCCEEDED</b> · 已发布<br>Swap 成功 · 证据已落链</span>
+                </div>
+                <div class="box solid" style="font-size:11px;line-height:1.85">
+                  <div class="lbl">发布结果</div>
+                  正式表 <span class="mono">dw.dwd_order_wide</span><br>
+                  前序引用 <span class="mono">…_v7_20261120</span><br>
+                  质量结论：<b>PASSED</b> · 拒绝率 0.9%<br>
+                  Capability：<b>已消费</b>（单次）<br>
+                  证据记录 <span class="mono">#12884</span> <button class="btn sm">查看链</button>
+                </div>
+              </div>
+              <div>
+                <div class="statebar block" style="margin-bottom:9px">
+                  <span class="tag">二次确认</span>
+                  <span class="txt">受管回滚确认弹层（遮罩态）</span>
+                </div>
+                <div class="box solid" style="font-size:11px;line-height:1.8;border-width:2px">
+                  <div style="font-weight:600;margin-bottom:7px">确认受管回滚？</div>
+                  对象：<span class="mono">RUN-8891</span> · <span class="mono">dwd_order_wide</span><br>
+                  影响范围：清理影子表 <span class="mono">…__shadow_8891</span>（未发布数据）<br>
+                  不可逆性：已释放的作业资源不可恢复；正式表将回切至前序引用<br>
+                  <div style="margin:7px 0;padding:6px 7px;background:#fafafa;border:1px dashed var(--line2)">
+                    回滚范围：取消残留作业 · 清理影子表与错误表 · 恢复 Swap 引用 · 释放临时凭据
+                  </div>
+                  <div class="btnrow" style="margin-top:8px">
+                    <button class="btn sm rw">取消</button>
+                    <button class="btn sm danger rw">确认回滚</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="anno">
+              <b>评审补充</b>：验收项 AC-08 要求「超限硬中断 + 受管回滚」可演示，仅靠 RUNNING 态无法验证。故补齐异常态、完成态与回滚二次确认三种呈现。<br>
+              高风险按钮统一规则：显示对象、影响范围、不可逆性，并二次确认。
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 10 安全治理与 Benchmark ============ -->
+      <section class="page" id="p-bench">
+        <div class="pagehead">
+          <h1>安全治理与 Benchmark</h1>
+          <div class="meta"><span>主要用户：<b>Checker 2</b>（触发）/ 审计（只读）</span><span>套件：<b>etl-bench-2026.11</b></span>
+            <span class="req">FR-BENCH-01</span><span class="req">FR-BENCH-02</span><span class="req">FR-BENCH-03</span><span class="req">FR-BENCH-04</span>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h3>评测配置与触发</h3>
+          <div class="body">
+            <div class="btnrow">
+              <select class="wf-sel"><option>套件：etl-bench-2026.11</option></select>
+              <span class="chip on">L0 静态注入</span><span class="chip on">L1 模拟故障</span><span class="chip">L2 真实链路</span>
+              <span style="flex:1"></span>
+              <button class="btn rw c2-only">触发评测</button>
+            </div>
+            <div class="anno">触发时冻结快照：用例版本 + 模型 Provider 版本 + 策略版本 + 门禁版本，保证结果可复核。L2 需占用真实链路沙箱，耗时较长。</div>
+          </div>
+        </div>
+
+        <div class="g4" style="margin-bottom:14px">
+          <div class="kpi"><div class="k">生成准确率</div><div class="v">92.4<small>%</small></div><div class="sub">142 / 156 用例一次通过</div></div>
+          <div class="kpi"><div class="k">P0 拦截率</div><div class="v">100<small>%</small></div><div class="sub">18 / 18 危险配置被拦截</div></div>
+          <div class="kpi"><div class="k">P1 拦截率</div><div class="v">96.7<small>%</small></div><div class="sub">29 / 30 · 1 例漏拦截（见下钻）</div></div>
+          <div class="kpi"><div class="k">用例总数</div><div class="v">156<small>条</small></div><div class="sub">L0 96 · L1 48 · L2 12</div></div>
+        </div>
+
+        <div class="row">
+          <div class="col">
+            <div class="sec">
+              <h3>历史版本对比</h3>
+              <div class="body">
+                <div class="chart">准确率 / 拦截率趋势占位（按评测运行序号）</div>
+                <div class="btnrow" style="margin-top:10px">
+                  <select class="wf-sel"><option>基准：RUN-B-2026.10-03</option></select>
+                  <select class="wf-sel"><option>对比：RUN-B-2026.11-01</option></select>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <h3>用例结果 <span class="hint">可下钻至命中规则</span></h3>
+              <div class="body tight">
+                <table class="wf">
+                  <tr><th>用例</th><th>层级</th><th>期望</th><th>实际</th><th>门禁</th><th>命中规则</th><th>结果</th><th></th></tr>
+                  <tr><td class="mono">B-0142</td><td>L0</td><td>拦截</td><td>拦截</td><td><span class="chip on">PASS</span></td><td class="mono">R-SECRET-PLAIN</td><td><span class="chip on">通过</span></td><td><button class="btn sm">下钻</button></td></tr>
+                  <tr class="hl"><td class="mono">B-0151</td><td>L1</td><td>拦截</td><td>放行</td><td><span class="chip dg">FAIL</span></td><td class="mono">—</td><td><span class="chip dg">漏拦截</span></td><td><button class="btn sm">下钻</button></td></tr>
+                  <tr><td class="mono">B-0033</td><td>L0</td><td>通过</td><td>通过</td><td><span class="chip on">PASS</span></td><td class="mono">—</td><td><span class="chip on">通过</span></td><td><button class="btn sm">下钻</button></td></tr>
+                  <tr><td class="mono">B-0087</td><td>L2</td><td>通过</td><td>通过</td><td><span class="chip on">PASS</span></td><td class="mono">—</td><td><span class="chip on">通过</span></td><td><button class="btn sm">下钻</button></td></tr>
+                </table>
+              </div>
+              <div class="anno" style="padding:0 13px 12px">下钻只展示脱敏样本与规则命中详情，不展示未脱敏敏感数据。</div>
+            </div>
+          </div>
+
+          <div class="col" style="flex:0 0 340px">
+            <div class="sec">
+              <h3>安全策略版本 <span class="hint">变更必须版本 + 评测 + 审计</span></h3>
+              <div class="body tight">
+                <table class="wf">
+                  <tr><th>版本</th><th>状态</th><th>评测</th></tr>
+                  <tr><td class="mono">pol-2.7</td><td><span class="chip on">生效中</span></td><td>2026.11-01</td></tr>
+                  <tr><td class="mono">pol-2.8</td><td><span class="chip">待发布</span></td><td>2026.11-02 · 已通过</td></tr>
+                </table>
+              </div>
+              <div class="body" style="border-top:1px solid var(--line)">
+                <div class="btnrow c-only">
+                  <button class="btn danger rw c2-only">发布 pol-2.8</button>
+                </div>
+                <div class="anno">发布前校验：存在对应版本评测结果且达标；发布动作写审计与证据。<br><b>评审点</b>：不提供「就地改阈值」入口，避免静默改参。</div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <h3>策略规则预览 <span class="hint">只读</span></h3>
+              <div class="body" style="font-size:11px;line-height:1.85;color:var(--ink2)">
+                <div class="mono">R-PII-01　含 PII → 强制双审</div>
+                <div class="mono">R-WRITE-DW-03　写生产库 → P1</div>
+                <div class="mono">R-SECRET-PLAIN　明文凭据 → 直接拒绝</div>
+                <div class="mono">R-BUDGET-EMPTY　预算缺失 → 保守决策</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 11 证据账本 ============ -->
+      <section class="page" id="p-evidence">
+        <div class="pagehead">
+          <h1>证据账本（Evidence Ledger）</h1>
+          <div class="meta"><span>主要用户：<b>审计人员</b>（其余角色按可审范围）</span><span>链：<b>project:retail-dw</b> · 记录 12,884</span>
+            <span class="req">FR-EVID-01</span><span class="req">FR-EVID-02</span><span class="req">FR-EVID-03</span>
+          </div>
+        </div>
+
+        <div class="statebar">
+          <span class="tag">只读</span>
+          <span class="txt">证据记录仅追加，本页不提供编辑与删除入口。<em>任何修正必须以新记录追加表达。</em></span>
+        </div>
+
+        <div class="sec">
+          <h3>筛选与验证</h3>
+          <div class="body">
+            <div class="btnrow">
+              <input class="wf-inp" placeholder="时间范围" style="width:170px">
+              <select class="wf-sel"><option>事件类型：全部</option><option>PREPARE</option><option>APPROVE</option><option>COMMIT</option><option>EXECUTION</option><option>ROLLBACK</option><option>DENIED</option></select>
+              <select class="wf-sel"><option>操作主体：全部</option></select>
+              <input class="wf-inp" placeholder="制品哈希" style="width:150px">
+              <span style="flex:1"></span>
+              <button class="btn primary">验证链完整性</button>
+            </div>
+            <div class="box solid" style="margin-top:11px;background:#fafafa">
+              <div class="lbl">验证结果（最近一次：2026-11-23 16:20）</div>
+              链式校验：<b>通过</b>　·　序号连续：12,884 / 12,884　·　签名校验：通过　·　公钥有效期：通过<br>
+              <span style="color:var(--muted)">首个异常位置：无</span>
+            </div>
+            <div class="anno">对应 <b>FR-EVID-02</b>：校验方需能发现链断裂、签名错误或摘要不一致，因此必须有独立的验证入口与结构化结果。</div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col">
+            <div class="sec">
+              <h3>证据记录 <span class="hint">按序号倒序</span></h3>
+              <div class="body tight">
+                <table class="wf">
+                  <tr><th>序号</th><th>时间</th><th>事件类型</th><th>主体</th><th>制品哈希</th><th>签名</th><th>前序哈希</th><th></th></tr>
+                  <tr class="hl"><td class="num">12884</td><td class="mono">16:10:02</td><td>COMMIT</td><td>赵六</td><td class="mono">a3f9…c21d</td><td class="mono">ed25519:9f2a…</td><td class="mono">71c0…4be1</td><td><button class="btn sm">验证</button></td></tr>
+                  <tr><td class="num">12883</td><td class="mono">15:20:41</td><td>APPROVE</td><td>李四</td><td class="mono">a3f9…c21d</td><td class="mono">ed25519:3b81…</td><td class="mono">0d22…8fa7</td><td><button class="btn sm">验证</button></td></tr>
+                  <tr><td class="num">12882</td><td class="mono">14:09:40</td><td>PREPARE</td><td>张三</td><td class="mono">a3f9…c21d</td><td class="mono">ed25519:c74e…</td><td class="mono">5e19…bb03</td><td><button class="btn sm">验证</button></td></tr>
+                  <tr><td class="num">12881</td><td class="mono">14:09:12</td><td>APPROVE_DENIED</td><td>张三</td><td class="mono">a3f9…c21d</td><td class="mono">ed25519:a1f0…</td><td class="mono">92d4…0c76</td><td><button class="btn sm">验证</button></td></tr>
+                </table>
+              </div>
+              <div class="anno" style="padding:0 13px 12px">序号 12881 为「申请人自批被拒」的证据记录，对应 AC-01 验收项：拒绝也必须留证。</div>
+            </div>
+          </div>
+
+          <div class="col" style="flex:0 0 360px">
+            <div class="sec">
+              <h3>记录详情 · #12884</h3>
+              <div class="body" style="font-size:11.5px;line-height:2;color:var(--ink2)">
+                <div>时间戳：<span class="mono">2026-11-23T16:10:02.418Z</span></div>
+                <div>操作主体：赵六（operator）</div>
+                <div>事件类型：<b>COMMIT</b></div>
+                <div>制品哈希：<span class="mono">a3f9b2…c21d</span></div>
+                <div>载荷摘要：<span class="mono">p_7d21…</span></div>
+                <div>Ed25519 签名：<span class="mono">ed25519:9f2a…</span></div>
+                <div>前序区块哈希：<span class="mono">71c0…4be1</span></div>
+                <div>本记录哈希：<span class="mono">3ac8…91f2</span></div>
+                <div>签名公钥：<span class="mono">kid-2026-03</span>（有效期至 2027-03-01）</div>
+                <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line)">
+                  验签结果：<b>通过</b>　·　链定位：第 12,884 块　·　前序一致：<b>是</b>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <h3>可审范围提示</h3>
+              <div class="body anno" style="margin:0;border-left:0;padding:0">
+                审计人员：本项目全量只读。<br>
+                Maker / Checker：本人可审范围（自身参与的 Preparation 与执行）。<br>
+                操作员：本项目范围。<br>
+                证据载荷默认脱敏，只保存摘要与脱敏值，不含敏感原值。
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 12 项目与成员设置 ============ -->
+      <section class="page" id="p-settings">
+        <div class="pagehead">
+          <h1>项目与成员设置</h1>
+          <div class="meta"><span>主要用户：<b>有管理授权者</b></span><span>项目：<b>retail-dw</b></span>
+            <span class="req">FR-AUTH-03</span><span class="req">FR-AUTH-04</span><span class="req">FR-DS-05</span>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col">
+            <div class="sec">
+              <h3>项目成员与角色</h3>
+              <div class="body tight">
+                <table class="wf">
+                  <tr><th>成员</th><th>角色（可多选）</th><th>加入时间</th><th>状态</th><th>操作</th></tr>
+                  <tr><td>张三</td><td><span class="chip on">Maker</span></td><td class="mono">2026-09-01</td><td>启用</td><td><button class="btn sm rw">编辑角色</button></td></tr>
+                  <tr><td>李四</td><td><span class="chip on">Checker 1</span></td><td class="mono">2026-09-01</td><td>启用</td><td><button class="btn sm rw">编辑角色</button></td></tr>
+                  <tr><td>王五</td><td><span class="chip on">Checker 2</span></td><td class="mono">2026-09-05</td><td>启用</td><td><button class="btn sm rw">编辑角色</button></td></tr>
+                  <tr><td>赵六</td><td><span class="chip on">操作员</span></td><td class="mono">2026-09-05</td><td>启用</td><td><button class="btn sm rw">编辑角色</button></td></tr>
+                  <tr><td>孙七</td><td><span class="chip on">审计人员</span></td><td class="mono">2026-10-12</td><td>启用</td><td><button class="btn sm rw">编辑角色</button></td></tr>
+                </table>
+              </div>
+              <div class="body" style="border-top:1px solid var(--line)">
+                <div class="anno" style="margin:0">
+                  角色变更即时影响<b>后续</b>授权校验，但<b>不重写历史审批事实</b>。若成员同时被赋予 Maker 与 Checker 角色，其在 Prepare 时会被排除出职责槽分配，并在审批时被拒绝。
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <h3>凭据轮转</h3>
+              <div class="body tight">
+                <table class="wf">
+                  <tr><th>连接</th><th>上次轮转</th><th>下次到期</th><th>状态</th><th>操作</th></tr>
+                  <tr><td>biz-mysql-prod</td><td class="mono">2026-10-24</td><td class="mono">2027-01-24</td><td><span class="chip on">正常</span></td><td><button class="btn sm rw">轮转</button></td></tr>
+                  <tr class="hl"><td>oss-log-archive</td><td class="mono">2026-08-11</td><td class="mono">2026-11-21</td><td><span class="chip dg">已过期</span></td><td><button class="btn sm rw">轮转</button></td></tr>
+                </table>
+              </div>
+              <div class="anno" style="padding:0 13px 12px">轮转需权限校验并留审计；被活动连接或已冻结版本引用时不允许删除旧版本。</div>
+            </div>
+          </div>
+
+          <div class="col" style="flex:0 0 340px">
+            <div class="sec">
+              <h3>安全与协议配置</h3>
+              <div class="body" style="font-size:11.5px;line-height:2;color:var(--ink2)">
+                <div>Preparation 有效期：<span class="mono">24h</span>（待冻结 TBD-09）</div>
+                <div>Capability 有效期：<span class="mono">5 min</span>（固定，不可配置）</div>
+                <div>默认拒绝率上限：<span class="mono">20%</span></div>
+                <div>门禁版本：<span class="mono">2.7</span></div>
+                <div>策略版本：<span class="mono">pol-2.7</span></div>
+                <div style="color:var(--muted);font-size:11px;margin-top:6px">
+                  Capability 有效期与单次消费为协议常量，页面只展示不可编辑。
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <h3>角色职责速查</h3>
+              <div class="body" style="font-size:11px;line-height:1.9;color:var(--ink2)">
+                <div><b>Maker</b>　登记连接、探查、设计生成、冻结、Prepare</div>
+                <div><b>Checker 1</b>　数据维度审批（映射 / 脱敏 / 质量规则 / DAG）</div>
+                <div><b>Checker 2</b>　安全维度审批（资源 / 分级 / 预算 / Secret / 回滚）</div>
+                <div><b>操作员</b>　Commit、执行控制、回滚、凭据轮转</div>
+                <div><b>审计人员</b>　只读：执行历史、审计事件、证据、质量、评测</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ R 评审记录 ============ -->
+      <section class="page" id="p-review">
+        <div class="pagehead">
+          <h1>原型评审记录</h1>
+          <div class="meta"><span>评审对象：<b>本原型 13 个页面</b></span><span>基准：<b>项目要求 2.8.3 / 2.8.5 / 2.8.8</b> 优先，PRD 第 5、6、12、15 章补充</span></div>
+        </div>
+
+        <div class="statebar">
+          <span class="tag">结论</span>
+          <span class="txt">页面覆盖完整（5 个一级页面拆为 8 个视图，另有 5 个支撑页面）。共发现 <b>26 处问题</b>：22 处已在原型中修正，4 处依赖未冻结参数、需产品确认后再定稿。</span>
+        </div>
+
+        <div class="sec">
+          <h3>评审维度一：页面完整性 <span class="hint">对照项目要求 2.8.3 五个一级页面 + 2.8.5 六个前端模块</span></h3>
+          <div class="body tight">
+            <table class="rev">
+              <tr><th style="width:46px">编号</th><th style="width:150px">页面 / 模块</th><th>要求来源</th><th style="width:250px">覆盖情况</th><th style="width:70px">结论</th></tr>
+              <tr><td>P-01</td><td>总览工作台</td><td>2.8.3；FR-DASH-01/02</td><td>连接数、Pipeline 数、待审批门禁（拆职责槽）、运行成功率、资源分布、快捷导航</td><td class="tag-ok">覆盖</td></tr>
+              <tr><td>P-02</td><td>数据源与资产</td><td>2.8.3；FR-DS-01~06</td><td>5 类库 + 6 类文件/API、连通性测试、轮转、状态与最近检查时间、新建分类型表单</td><td class="tag-ok">覆盖</td></tr>
+              <tr><td>P-03</td><td>元数据探查 / 脱敏样本</td><td>2.8.3；FR-META-01~06</td><td>Schema 树、字段类型、近似统计口径、采样策略、脱敏样本、脱敏前后结构对比、Profile 版本</td><td class="tag-ok">覆盖</td></tr>
+              <tr><td>P-04</td><td>Studio 需求输入与澄清</td><td>2.8.3；FR-STU-01~05</td><td>需求输入、源/目标选择、节点状态、澄清表单、Checkpoint 与恢复次数、会话记录</td><td class="tag-ok">覆盖</td></tr>
+              <tr><td>P-05</td><td>Studio 方案与拓扑审查</td><td>2.8.3；FR-STU-06~09</td><td>EtlPlan、HOCON 高亮、DAG、字段映射、脱敏前后结构、有限修复记录</td><td class="tag-ok">覆盖</td></tr>
+              <tr><td>P-06</td><td>Studio 门禁与提交</td><td>2.8.3；FR-GATE-01~05；FR-STU-10</td><td>6 组门禁结果、冻结摘要与二次确认、调度策略、Prepare 入口</td><td class="tag-ok">覆盖</td></tr>
+              <tr><td>P-07</td><td>版本与 Diff</td><td>2.8.5 不可变版本与 Diff 模块；FR-GATE-06</td><td>版本列表 + 摘要、Schema/HOCON/质量规则三方 Diff、影响提示</td><td class="tag-ok">覆盖</td></tr>
+              <tr><td>P-08</td><td>待办与准备单审批</td><td>2.8.3；FR-PREP-02~08；FR-COMMIT-01/02</td><td>冻结事实全字段、双职责槽 + 操作员候选、审批意见、Commit 复验清单</td><td class="tag-ok">覆盖</td></tr>
+              <tr><td>P-09</td><td>执行监控与质量诊断</td><td>2.8.3；FR-RUN-01~09；FR-QUAL-03</td><td>五项指标、双曲线、日志、分流统计、ErrorCode 分布、诊断七要素、执行记录表；补异常态/完成态/回滚确认</td><td class="tag-ok">覆盖</td></tr>
+              <tr><td>P-10</td><td>安全治理与 Benchmark</td><td>2.8.3；FR-BENCH-01~04</td><td>L0/L1/L2、触发、准确率与 P0/P1 拦截率、历史对比、用例下钻、策略版本发布</td><td class="tag-ok">覆盖</td></tr>
+              <tr><td>P-11</td><td>证据账本</td><td>2.8.8；FR-EVID-01~03</td><td>六要素字段、链验证入口与结果、记录详情、可审范围说明</td><td class="tag-ok">覆盖</td></tr>
+              <tr><td>P-12</td><td>项目与成员设置</td><td>PRD 5.1；FR-AUTH-03/04</td><td>成员角色、角色变更影响说明、凭据轮转、协议常量展示</td><td class="tag-ok">覆盖</td></tr>
+              <tr><td>P-13</td><td>登录</td><td>FR-AUTH-01/02</td><td>单一入口 + 项目上下文提示；不设计注册</td><td class="tag-ok">覆盖</td></tr>
+            </table>
+            <div class="legend">缺口核查：项目要求 2.8.3 的五个一级页面全部落位；2.8.5 的六个前端模块分别对应 P-02/P-03、P-04~06、P-07、P-08、P-09、P-10。未发现整页缺失。</div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h3>评审维度二：字段遗漏 <span class="hint">对照 PRD 7.4 冻结事实、12.1~12.4 输出格式、15.1/15.2 指标口径</span></h3>
+          <div class="body tight">
+            <table class="rev">
+              <tr><th style="width:46px">编号</th><th style="width:120px">页面</th><th style="width:200px">问题</th><th>处理</th><th style="width:64px">状态</th></tr>
+              <tr><td>F-01</td><td>总览</td><td>「待审批门禁」只有总数，未区分数据槽 / 安全槽</td><td>拆为两个计数，待办列表增加「我的槽位」列</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>F-02</td><td>数据源</td><td>缺「最近检查时间」与「需轮转」状态</td><td>列表补充两列，状态枚举按 FR-DS-06 定</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>F-03</td><td>探查</td><td>缺近似统计口径说明与采样策略</td><td>探查参数区补充口径、样本量、时间窗、脱敏规则</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>F-04</td><td>探查</td><td>脱敏对比只到字段级，未体现「规则差异」</td><td>补充「规则新增 / 类型变更 / 精度提升」差异列</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>F-05</td><td>Studio 步骤2</td><td>缺有限修复的过程记录</td><td>增加修复时间线：原因 / 变更对象 / 结果 / 剩余错误 / 轮次</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>F-06</td><td>Studio 步骤3</td><td>缺调度策略字段，审批人无法审查</td><td>补充 Cron、时区、执行窗口、失败策略</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>F-07</td><td>审批</td><td>缺「驳回意见」输入</td><td>增加必填意见框，驳回时强制填写原因</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>F-08</td><td>审批</td><td>职责槽只有两个 Checker，缺操作员候选</td><td>补充「操作员候选」行（PRD 7.4 明确要求）</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>F-09</td><td>审批</td><td>资源范围缺「网络资源」</td><td>补充网络资源行（主机:端口列表）</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>F-10</td><td>审批</td><td>PDP 只显示等级，未展示命中规则与理由</td><td>补充命中策略、规则码、可解释理由、审批要求</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>F-11</td><td>运行</td><td>质量区缺「监督决策」与「Swap 是否执行及结果」</td><td>结论区扩为三项：质量结论 / 监督决策 / Swap 状态</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>F-12</td><td>运行</td><td>诊断缺「是否允许重试 / 回滚 / 重新 Prepare」</td><td>补充允许操作行，对应 PRD 15.3</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>F-13</td><td>证据</td><td>缺「记录哈希」与「签名公钥标识」</td><td>详情抽屉补充本记录哈希、kid、公钥有效期</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>F-14</td><td>Benchmark</td><td>大盘缺模型与策略版本标识</td><td>评测配置区声明冻结快照包含四类版本</td><td class="tag-ok">已修正</td></tr>
+            </table>
+            <div class="legend">字段核查亮点：Preparation 页已按 PRD 7.4 逐项对齐 8 组冻结事实；执行页已覆盖 PRD 12.2 全部 9 个字段。</div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h3>评审维度三：按钮与操作合理性 <span class="hint">重点看「谁能点、点了会怎样、是否可逆」</span></h3>
+          <div class="body tight">
+            <table class="rev">
+              <tr><th style="width:46px">编号</th><th style="width:130px">问题</th><th>风险</th><th>处理</th><th style="width:64px">状态</th></tr>
+              <tr><td>B-01</td><td>Commit 按钮与审批按钮同页且未做角色区分</td><td>Maker 可能看到并尝试 Commit，属高风险越权入口</td><td>Commit 区限定操作员可见；审批区对非槽位人禁用；二者视觉分区</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>B-02</td><td>运行页只有「停止」一个动作</td><td>暂停 = 可恢复，取消 = 终止，回滚 = 清理恢复，三者语义不同，合并会误操作</td><td>拆为「暂停」「取消作业」「受管回滚」三个按钮，取消与回滚用危险样式</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>B-03</td><td>「冻结版本」无不可逆提示</td><td>用户可能误以为可再编辑</td><td>危险样式 + 明示影响范围与不可逆性 + 二次确认</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>B-04</td><td>审计角色下仍渲染写操作按钮</td><td>违反权限化导航要求，且易造成误点</td><td>增加角色切换演示：审计视图隐藏全部写入口并显示只读横幅</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>B-05</td><td>Benchmark 缺触发入口的权限提示</td><td>Maker 可能尝试触发评测</td><td>「触发评测」限定 Checker 2；其他人只读结果</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>B-06</td><td>策略发布若提供「就地改阈值」会绕过评测</td><td>静默改参风险</td><td>只保留「发布新版本」，不提供就地编辑</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>B-07</td><td>缺少「异常态」与「完成态」界面</td><td>AC-08 要求演示硬中断与回滚，只有 RUNNING 态无法验证；PRD 5.3 要求五态齐全</td><td>运行页补充异常态（失败快照）、完成态（发布结果）两种呈现</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>B-08</td><td>回滚缺少二次确认弹层</td><td>回滚会清理数据并回切正式表，一键执行风险过高</td><td>补充确认弹层：对象、影响范围、不可逆性、回滚范围清单</td><td class="tag-ok">已修正</td></tr>
+              <tr><td>B-09</td><td>调度策略中「预计执行次数」无值</td><td>审批人无法判断预算是否够用，取决于授权语义</td><td>标为待确认字段并注明依赖 TBD-07</td><td class="tag-open">待确认</td></tr>
+              <tr><td>B-10</td><td>高风险双槽是否强制不同人</td><td>P0-P3 矩阵未冻结，UI 无法确定何时禁用同一人</td><td>原型按「P0/P1 强制不同人」呈现，需产品确认</td><td class="tag-open">待确认</td></tr>
+              <tr><td>B-11</td><td>错误表原始值是否提供诊断查看入口</td><td>涉及敏感数据二次暴露，保留周期未定</td><td>原型不设原值查看入口，仅展示脱敏样本摘要</td><td class="tag-open">待确认</td></tr>
+              <tr><td>B-12</td><td>登录是否支持企业 SSO</td><td>影响认证页结构，但认证方式未冻结</td><td>暂按单入口设计，待 TBD-03 确认后调整</td><td class="tag-open">待确认</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h3>评审结论与后续动作</h3>
+          <div class="body">
+            <div class="g2">
+              <div class="box solid">
+                <div class="lbl">结论</div>
+                原型可作为后续界面开发与接口对齐的基线。三个高风险越权入口（Commit、取消/回滚、策略发布）已收敛；Preparation 冻结事实与执行记录字段已完整对齐 PRD 输出格式。
+              </div>
+              <div class="box solid">
+                <div class="lbl">需产品确认后才能定稿的 4 项</div>
+                B-09 调度预计执行次数（TBD-07）<br>
+                B-10 高风险双槽强制分离范围（TBD-01）<br>
+                B-11 错误表原始值查看入口与保留（TBD-10）<br>
+                B-12 认证方式与 SSO（TBD-03）
+              </div>
+            </div>
+            <div class="anno">
+              下一步建议：① 确认上述 4 项后定稿线框；② 以本原型为基准反向校对 PRD 第 6 章是否存在「有需求无界面」的条目；③ 进入视觉设计前先冻结导航与状态呈现规范（阻塞态 / 等待态 / 执行态 / 异常态 / 完成态五态）。
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  (function(){
+    var items = document.querySelectorAll('.nav-item');
+    var pages = document.querySelectorAll('.page');
+    var crumb = document.getElementById('crumb');
+    items.forEach(function(it){
+      it.addEventListener('click', function(){
+        var key = it.getAttribute('data-page');
+        items.forEach(function(x){ x.classList.remove('on'); });
+        it.classList.add('on');
+        pages.forEach(function(p){ p.classList.remove('on'); });
+        var target = document.getElementById('p-' + key);
+        if(target){ target.classList.add('on'); }
+        crumb.textContent = it.textContent.replace(/^\s*\S+\s*/, '').trim();
+        window.scrollTo({top:0, behavior:'instant'});
+      });
+    });
+    var sel = document.getElementById('roleSel');
+    var who = document.querySelector('.who');
+    var names = {
+      maker:'张三 · Maker', checker1:'李四 · Checker 1', checker2:'王五 · Checker 2',
+      operator:'赵六 · 操作员', auditor:'孙七 · 审计人员'
+    };
+    sel.addEventListener('change', function(){
+      document.body.setAttribute('data-role', sel.value);
+      who.textContent = names[sel.value] || sel.value;
+    });
+  })();
+</script>
+</body>
+</html>

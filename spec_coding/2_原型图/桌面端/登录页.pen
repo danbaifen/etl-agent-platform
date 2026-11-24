@@ -1,0 +1,473 @@
+{
+ "version": "2.25",
+ "children": [
+  {
+   "type": "frame",
+   "id": "f31",
+   "name": "P01 登录",
+   "x": 0,
+   "y": 0,
+   "width": 1440,
+   "height": 900,
+   "layout": "none",
+   "clip": true,
+   "fill": "#F6F7F9",
+   "children": [
+    {
+     "type": "rectangle",
+     "id": "r1",
+     "name": "背景",
+     "x": 0,
+     "y": 0,
+     "width": 1440,
+     "height": 900,
+     "fill": "#F6F7F9"
+    },
+    {
+     "type": "text",
+     "id": "t2",
+     "name": "品牌",
+     "x": 80,
+     "y": 48,
+     "content": "ETL-Agent",
+     "fontSize": 17,
+     "fontFamily": "Inter",
+     "fontWeight": "bold",
+     "fill": "#1D2129",
+     "lineHeight": 1.45
+    },
+    {
+     "type": "text",
+     "id": "t3",
+     "name": "品牌副标",
+     "x": 80,
+     "y": 74,
+     "content": "数据集成平台 · 生产级",
+     "fontSize": 11,
+     "fontFamily": "Inter",
+     "fontWeight": "regular",
+     "fill": "#98A2B3",
+     "lineHeight": 1.45
+    },
+    {
+     "type": "text",
+     "id": "t4",
+     "name": "左侧主张",
+     "x": 80,
+     "y": 320,
+     "content": "从一句话需求，到可审计的生产任务",
+     "fontSize": 34,
+     "fontFamily": "Inter",
+     "fontWeight": "semibold",
+     "fill": "#1D2129",
+     "lineHeight": 1.3,
+     "width": 560,
+     "textGrowth": "fixed-width"
+    },
+    {
+     "type": "text",
+     "id": "t5",
+     "name": "左侧说明",
+     "x": 80,
+     "y": 420,
+     "content": "生成与审批分离 · 冻结事实不可变 · 执行全程留证\n每一次上线都能追溯到是谁、基于什么、批准了什么。",
+     "fontSize": 14,
+     "fontFamily": "Inter",
+     "fontWeight": "regular",
+     "fill": "#667085",
+     "lineHeight": 1.7,
+     "width": 520,
+     "textGrowth": "fixed-width"
+    },
+    {
+     "type": "frame",
+     "id": "f6",
+     "name": "左侧标签1",
+     "x": 80,
+     "y": 520,
+     "width": 140,
+     "height": 22,
+     "layout": "horizontal",
+     "fill": "#EEF0F4",
+     "cornerRadius": 4,
+     "padding": [
+      0,
+      8
+     ],
+     "gap": 4,
+     "justifyContent": "center",
+     "alignItems": "center",
+     "children": [
+      {
+       "type": "text",
+       "id": "t7",
+       "name": "左侧标签1 文案",
+       "x": 0,
+       "y": 0,
+       "content": "Maker / Checker 双槽",
+       "fontSize": 11,
+       "fontFamily": "Inter",
+       "fontWeight": "medium",
+       "fill": "#667085",
+       "lineHeight": 1.45
+      }
+     ]
+    },
+    {
+     "type": "frame",
+     "id": "f8",
+     "name": "左侧标签2",
+     "x": 232,
+     "y": 520,
+     "width": 152,
+     "height": 22,
+     "layout": "horizontal",
+     "fill": "#EEF0F4",
+     "cornerRadius": 4,
+     "padding": [
+      0,
+      8
+     ],
+     "gap": 4,
+     "justifyContent": "center",
+     "alignItems": "center",
+     "children": [
+      {
+       "type": "text",
+       "id": "t9",
+       "name": "左侧标签2 文案",
+       "x": 0,
+       "y": 0,
+       "content": "Capability 单次授权",
+       "fontSize": 11,
+       "fontFamily": "Inter",
+       "fontWeight": "medium",
+       "fill": "#667085",
+       "lineHeight": 1.45
+      }
+     ]
+    },
+    {
+     "type": "frame",
+     "id": "f10",
+     "name": "左侧标签3",
+     "x": 396,
+     "y": 520,
+     "width": 120,
+     "height": 22,
+     "layout": "horizontal",
+     "fill": "#EEF0F4",
+     "cornerRadius": 4,
+     "padding": [
+      0,
+      8
+     ],
+     "gap": 4,
+     "justifyContent": "center",
+     "alignItems": "center",
+     "children": [
+      {
+       "type": "text",
+       "id": "t11",
+       "name": "左侧标签3 文案",
+       "x": 0,
+       "y": 0,
+       "content": "证据链可验证",
+       "fontSize": 11,
+       "fontFamily": "Inter",
+       "fontWeight": "medium",
+       "fill": "#667085",
+       "lineHeight": 1.45
+      }
+     ]
+    },
+    {
+     "type": "frame",
+     "id": "f12",
+     "name": "登录卡",
+     "x": 800,
+     "y": 180,
+     "width": 480,
+     "height": 540,
+     "layout": "none",
+     "fill": "#FFFFFF",
+     "stroke": "#D9DEE7",
+     "strokeWidth": 1,
+     "strokeAlignment": "inner",
+     "cornerRadius": 14
+    },
+    {
+     "type": "text",
+     "id": "t13",
+     "name": "登录标题",
+     "x": 840,
+     "y": 216,
+     "content": "登录",
+     "fontSize": 22,
+     "fontFamily": "Inter",
+     "fontWeight": "semibold",
+     "fill": "#1D2129",
+     "lineHeight": 1.45
+    },
+    {
+     "type": "text",
+     "id": "t14",
+     "name": "登录副标",
+     "x": 840,
+     "y": 252,
+     "content": "使用企业账号访问，权限随角色生效",
+     "fontSize": 12,
+     "fontFamily": "Inter",
+     "fontWeight": "regular",
+     "fill": "#667085",
+     "lineHeight": 1.45,
+     "width": 400,
+     "textGrowth": "fixed-width"
+    },
+    {
+     "type": "text",
+     "id": "t15",
+     "name": "账号标签",
+     "x": 840,
+     "y": 300,
+     "content": "企业邮箱",
+     "fontSize": 11,
+     "fontFamily": "Inter",
+     "fontWeight": "regular",
+     "fill": "#667085",
+     "lineHeight": 1.45
+    },
+    {
+     "type": "frame",
+     "id": "f17",
+     "name": "账号输入",
+     "x": 840,
+     "y": 320,
+     "width": 400,
+     "height": 40,
+     "layout": "none",
+     "fill": "#FFFFFF",
+     "stroke": "#D9DEE7",
+     "strokeWidth": 1,
+     "strokeAlignment": "inner",
+     "cornerRadius": 6,
+     "children": [
+      {
+       "type": "text",
+       "id": "t16",
+       "name": "账号占位",
+       "x": 12,
+       "y": 11,
+       "content": "name@company.com",
+       "fontSize": 13,
+       "fontFamily": "Inter",
+       "fontWeight": "regular",
+       "fill": "#98A2B3",
+       "lineHeight": 1.45
+      }
+     ]
+    },
+    {
+     "type": "text",
+     "id": "t18",
+     "name": "密码标签",
+     "x": 840,
+     "y": 380,
+     "content": "密码",
+     "fontSize": 11,
+     "fontFamily": "Inter",
+     "fontWeight": "regular",
+     "fill": "#667085",
+     "lineHeight": 1.45
+    },
+    {
+     "type": "frame",
+     "id": "f20",
+     "name": "密码输入",
+     "x": 840,
+     "y": 400,
+     "width": 400,
+     "height": 40,
+     "layout": "none",
+     "fill": "#FFFFFF",
+     "stroke": "#D9DEE7",
+     "strokeWidth": 1,
+     "strokeAlignment": "inner",
+     "cornerRadius": 6,
+     "children": [
+      {
+       "type": "text",
+       "id": "t19",
+       "name": "密码占位",
+       "x": 12,
+       "y": 11,
+       "content": "••••••••••",
+       "fontSize": 13,
+       "fontFamily": "Inter",
+       "fontWeight": "regular",
+       "fill": "#98A2B3",
+       "lineHeight": 1.45
+      }
+     ]
+    },
+    {
+     "type": "frame",
+     "id": "f21",
+     "name": "记住我",
+     "x": 840,
+     "y": 456,
+     "width": 16,
+     "height": 16,
+     "layout": "none",
+     "fill": "#FFFFFF",
+     "stroke": "#D9DEE7",
+     "strokeWidth": 1,
+     "strokeAlignment": "inner",
+     "cornerRadius": 3
+    },
+    {
+     "type": "text",
+     "id": "t22",
+     "name": "记住我文字",
+     "x": 864,
+     "y": 456,
+     "content": "保持登录 8 小时",
+     "fontSize": 12,
+     "fontFamily": "Inter",
+     "fontWeight": "regular",
+     "fill": "#667085",
+     "lineHeight": 1.45
+    },
+    {
+     "type": "text",
+     "id": "t23",
+     "name": "忘记密码",
+     "x": 1160,
+     "y": 456,
+     "content": "无法登录？",
+     "fontSize": 12,
+     "fontFamily": "Inter",
+     "fontWeight": "regular",
+     "fill": "#2B5CE6",
+     "lineHeight": 1.45,
+     "width": 80,
+     "textGrowth": "fixed-width"
+    },
+    {
+     "type": "frame",
+     "id": "f24",
+     "name": "主按钮 登录",
+     "x": 840,
+     "y": 496,
+     "width": 400,
+     "height": 42,
+     "layout": "horizontal",
+     "cornerRadius": 6,
+     "padding": [
+      0,
+      10
+     ],
+     "gap": 6,
+     "justifyContent": "center",
+     "alignItems": "center",
+     "fill": "#2B5CE6",
+     "children": [
+      {
+       "type": "text",
+       "id": "t25",
+       "name": "主按钮 登录 文案",
+       "x": 0,
+       "y": 0,
+       "content": "登录",
+       "fontSize": 13,
+       "fontFamily": "Inter",
+       "fontWeight": "medium",
+       "fill": "#FFFFFF",
+       "lineHeight": 1.45
+      }
+     ]
+    },
+    {
+     "type": "rectangle",
+     "id": "r26",
+     "name": "分隔线",
+     "x": 840,
+     "y": 562,
+     "width": 400,
+     "height": 1,
+     "fill": "#EDF0F5"
+    },
+    {
+     "type": "text",
+     "id": "t27",
+     "name": "SSO 说明",
+     "x": 840,
+     "y": 580,
+     "content": "企业 SSO 入口（待 B-12 确认后启用）",
+     "fontSize": 11,
+     "fontFamily": "Inter",
+     "fontWeight": "regular",
+     "fill": "#98A2B3",
+     "lineHeight": 1.45,
+     "width": 400,
+     "textGrowth": "fixed-width"
+    },
+    {
+     "type": "frame",
+     "id": "f28",
+     "name": "SSO 按钮",
+     "x": 840,
+     "y": 604,
+     "width": 400,
+     "height": 38,
+     "layout": "horizontal",
+     "cornerRadius": 6,
+     "padding": [
+      0,
+      10
+     ],
+     "gap": 6,
+     "justifyContent": "center",
+     "alignItems": "center",
+     "stroke": "#98A2B3",
+     "strokeWidth": 1,
+     "strokeAlignment": "inner",
+     "strokeDash": [
+      4,
+      4
+     ],
+     "children": [
+      {
+       "type": "text",
+       "id": "t29",
+       "name": "SSO 按钮 文案",
+       "x": 0,
+       "y": 0,
+       "content": "使用企业 SSO 登录（占位）",
+       "fontSize": 12,
+       "fontFamily": "Inter",
+       "fontWeight": "medium",
+       "fill": "#667085",
+       "lineHeight": 1.45
+      }
+     ]
+    },
+    {
+     "type": "text",
+     "id": "t30",
+     "name": "合规提示",
+     "x": 840,
+     "y": 668,
+     "content": "登录即表示同意《数据访问与审计条款》",
+     "fontSize": 10,
+     "fontFamily": "Inter",
+     "fontWeight": "regular",
+     "fill": "#98A2B3",
+     "lineHeight": 1.45,
+     "width": 400,
+     "textGrowth": "fixed-width"
+    }
+   ]
+  }
+ ]
+}
